@@ -18,7 +18,7 @@
 #include <cstdlib>
 #include <vector>
 #include <string>
-#include <windows.h>
+//#include <windows.h>
 using namespace std;
 
 #include "Image.h"
@@ -26,6 +26,17 @@ using namespace std;
 #include "Encoder.h"
 #include "QuadTreeEncoder.h"
 #include "Decoder.h"
+
+#include <time.h>
+#define DWORD unsigned int
+DWORD GetTickCount(){
+  struct timespec ts;
+  if(clock_gettime(CLOCK_MONOTONIC,&ts) != 0) {
+    printf("error: clock_gettime\n");
+    exit(1);
+  }
+  return ts.tv_nsec / 1000000;
+}
 
 int verb = 0;
 bool useYCbCr = true;
