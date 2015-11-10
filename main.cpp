@@ -66,8 +66,12 @@ void Convert(Encoder* enc, Image* source, int maxphases, int output)
   printf("Raw image bytes per transform: %d\n", imagesize/numTransforms);
 
   int transformSize = numTransforms * sizeof(IFSTransform);
-  float bogocompressionratio = imagesize/(transformSize/sizeof(int));
+  float bogocompressionratio = imagesize/(float)(transformSize/(float)sizeof(int));
   printf("Compression Ratio: %f:1\n", bogocompressionratio);
+
+  int transformSize2 = numTransforms * (sizeof(int)*6+sizeof(char)+sizeof(float));
+  float bogocompressionratio2 = imagesize/(float)(transformSize2/(float)sizeof(int));
+  printf("Compression Ratio2: %f:1\n", bogocompressionratio2);
 
   printf("Decoding...\n");
   Decoder* dec = new Decoder(width, height);

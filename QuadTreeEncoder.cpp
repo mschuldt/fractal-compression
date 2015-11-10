@@ -26,6 +26,7 @@ using namespace std;
 #include "Encoder.h"
 #include "QuadTreeEncoder.h"
 
+
 extern int verb;
 extern bool useYCbCr;
 
@@ -108,47 +109,59 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
 
   // Get average pixel for the range block
   int rangeAvg = GetAveragePixel(img.imagedata, img.width, toX, toY, blockSize);
-
-  // Go through all the downsampled domain blocks
-  for (int y = 0; y < img.height; y += blockSize * 2)
+#pragma omp parallel
+  {
+#pragma omp single /*nowait*/
     {
-      for (int x = 0; x < img.width; x += blockSize * 2)
+  
+      // Go through all the downsampled domain blocks
+      for (int y = 0; y < img.height; y += blockSize * 2)
         {
-          for (int symmetry = 0; symmetry < IFSTransform::SYM_MAX; symmetry++)
+          for (int x = 0; x < img.width; x += blockSize * 2)
             {
-              IFSTransform::SYM symmetryEnum = (IFSTransform::SYM)symmetry;
-              IFSTransform* ifs = new IFSTransform(x, y, 0, 0, blockSize, symmetryEnum, 1.0, 0);
-              ifs->Execute(img.imagedata2, img.width / 2, buffer, blockSize, true);
-
-              // Get average pixel for the downsampled domain block
-              int domainAvg = GetAveragePixel(buffer, blockSize, 0, 0, blockSize);
-
-              // Get scale and offset
-              double scale = GetScaleFactor(img.imagedata, img.width, toX, toY, domainAvg,
-                                            buffer, blockSize, 0, 0, rangeAvg, blockSize);
-              int offset = (int)(rangeAvg - scale * (double)domainAvg);
-
-              // Get error and compare to best error so far
-              double error = GetError(buffer, blockSize, 0, 0, domainAvg,
-                                      img.imagedata, img.width, toX, toY, rangeAvg, blockSize, scale);
-
-              if (error < bestError)
+              //#pragma omp parallel for
+              #pragma omp task
+              for (int symmetry = 0; symmetry < IFSTransform::SYM_MAX; symmetry++)
                 {
-                  bestError = error;
-                  bestX = x;
-                  bestY = y;
-                  bestSymmetry = symmetryEnum;
-                  bestScale = scale;
-                  bestOffset = offset;
+                  IFSTransform::SYM symmetryEnum = (IFSTransform::SYM)symmetry;
+                  IFSTransform* ifs = new IFSTransform(x, y, 0, 0, blockSize, symmetryEnum, 1.0, 0);
+                  ifs->Execute(img.imagedata2, img.width / 2, buffer, blockSize, true);
+
+                  // Get average pixel for the downsampled domain block
+                  int domainAvg = GetAveragePixel(buffer, blockSize, 0, 0, blockSize);
+
+                  // Get scale and offset
+                  double scale = GetScaleFactor(img.imagedata, img.width, toX, toY, domainAvg,
+                                                buffer, blockSize, 0, 0, rangeAvg, blockSize);
+                  int offset = (int)(rangeAvg - scale * (double)domainAvg);
+
+                  // Get error and compare to best error so far
+                  double error = GetError(buffer, blockSize, 0, 0, domainAvg,
+                                          img.imagedata, img.width, toX, toY, rangeAvg, blockSize, scale);
+
+                  #pragma omp critical
+                    {
+                      if (error < bestError)
+                        {
+                          bestError = error;
+                          bestX = x;
+                          bestY = y;
+                          bestSymmetry = symmetryEnum;
+                          bestScale = scale;
+                          bestOffset = offset;
+                        }
+                    }
+
+                    delete ifs;
+
+                    // if (!symmetry)
+                    //   break;
                 }
-
-              delete ifs;
-
-              if (!symmetry)
-                break;
+              #pragma omp taskwait
             }
         }
     }
+  }
 
   delete []buffer;
   buffer = NULL;

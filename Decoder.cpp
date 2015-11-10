@@ -58,7 +58,7 @@ void Decoder::Decode(Transforms* transforms)
       else if (channel == 3)
         origImage = img.imagedata3;
 
-      // Apple each transform at a time to this channel
+      // Apply each transform at a time to this channel
       iter = transforms->ch[channel-1].begin();
       for (; iter != transforms->ch[channel-1].end(); iter++)
         iter[0]->Execute(origImage, img.width, origImage, img.width, false);
