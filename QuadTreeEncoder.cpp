@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <vector>
 #include <string>
+#include <omp.h>
 using namespace std;
 
 #include "Image.h"

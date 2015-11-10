@@ -1,5 +1,5 @@
 
-OPT = 
+OPT = -fopenmp
 
 OBJ = IFSTransform.o\
 	Image.o\
