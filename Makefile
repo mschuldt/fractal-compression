@@ -6,7 +6,6 @@ OBJ = IFSTransform.o\
 	Decoder.o\
 	Encoder.o\
 	QuadTreeEncoder.o\
-	
 
 all: fractal
 
