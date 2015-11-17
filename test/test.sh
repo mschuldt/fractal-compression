@@ -18,6 +18,7 @@ check (){
     out_file=$1_out.jpg
     cmp -s $ref_file $out_file > /dev/null
     if [ $? -eq 1 ]; then
+        compare $ref_file $out_file $1_diff.jpg
         echo "FAIL"
     else
         echo "OK"
