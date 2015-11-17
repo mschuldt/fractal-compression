@@ -1,3 +1,4 @@
 *.o
-*.jpg
+*.jpg_out.jpg
+*.rgb
 fractal
