@@ -18,6 +18,12 @@
 #include <cstdlib>
 #include <vector>
 #include <string>
+#include <time.h>
+#include <cstring>
+#include <cstdint>
+#include <stdint.h>
+#include <omp.h>
+#include "counters.h"
 using namespace std;
 
 #include "Image.h"
@@ -42,15 +48,24 @@ QuadTreeEncoder::~QuadTreeEncoder()
 
 Transforms* QuadTreeEncoder::Encode(Image* source)
 {
+   //Initialize a hardware counter
+    hwCounter_t cl;
+    cl.init = false;
+    initTicks(cl);
+    
   Transforms* transforms = new Transforms;
 
   img.width = source->GetWidth();
   img.height = source->GetHeight();
   img.channels = source->GetChannels();
   transforms->channels = img.channels;
+  //#pragma omp parallel for
+  //PixelValue *
 
   for (int channel = 1; channel <= img.channels; channel++)
     {
+        
+
       // Load image into a local copy
       img.imagedata = new PixelValue[img.width * img.height];
       source->GetChannelData(channel, img.imagedata, img.width * img.height);
@@ -60,10 +75,14 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
           printf("Error: Image must have dimensions that are multiples of 32.\n");
           exit(-1);
         }
+        
 
       // Make second channel the downsampled version of the image.
-      img.imagedata2 = IFSTransform::DownSample(img.imagedata, img.width, 0, 0, img.width / 2);
-
+      //Get time before
+        uint64_t current_time = getTicks(cl);
+        img.imagedata2 = IFSTransform::DownSample(img.imagedata, img.width, 0, 0, img.width / 2);
+        uint64_t elapsed = getTicks(cl) - current_time;
+        printf("Number of Cycles required to take downsample: %lu\n", elapsed);
       // When using YCbCr we can reduce the quality of colour, because the eye
       // is more sensitive to intensity which is channel 1.
       if (channel >= 2 && useYCbCr)
@@ -74,12 +93,16 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
         {
           for (int x = 0; x < img.width; x += BUFFER_SIZE)
             {
+                //printf("****Buffer Size: %d\n", BUFFER_SIZE);
               findMatchesFor(transforms->ch[channel-1], x, y, BUFFER_SIZE);
               printf(".");
             }
           printf("\n");
         }
-
+        
+       //elapsed = getTicks(cl) - current_time;
+       //printf("Number of Cycles required to take findBestMatch: %lu\n", elapsed);
+        
       // Bring the threshold back to original.
       if (channel >= 2 && useYCbCr)
         threshold /= 2;
@@ -96,6 +119,11 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
 
 void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, int blockSize)
 {
+    //Initialize a hardware counter
+    //hwCounter_t cl;
+    //cl.init = false;
+    //initTicks(cl);
+    
   int bestX = 0;
   int bestY = 0;
   int bestOffset = 0;
@@ -104,24 +132,28 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
   double bestError = 1e9;
 
   PixelValue* buffer = new PixelValue[blockSize * blockSize];
-
-  // Get average pixel for the range block
+            // Get average pixel for the range block
+  
   int rangeAvg = GetAveragePixel(img.imagedata, img.width, toX, toY, blockSize);
-
+    
+  
   // Go through all the downsampled domain blocks
-  for (int y = 0; y < img.height; y += blockSize * 2)
+
+    for (int y = 0; y < img.height; y += blockSize * 2)
     {
       for (int x = 0; x < img.width; x += blockSize * 2)
         {
+          
           for (int symmetry = 0; symmetry < IFSTransform::SYM_MAX; symmetry++)
             {
               IFSTransform::SYM symmetryEnum = (IFSTransform::SYM)symmetry;
               IFSTransform* ifs = new IFSTransform(x, y, 0, 0, blockSize, symmetryEnum, 1.0, 0);
-              ifs->Execute(img.imagedata2, img.width / 2, buffer, blockSize, true);
 
+              ifs->Execute(img.imagedata2, img.width / 2, buffer, blockSize, true);
+                
               // Get average pixel for the downsampled domain block
               int domainAvg = GetAveragePixel(buffer, blockSize, 0, 0, blockSize);
-
+                
               // Get scale and offset
               double scale = GetScaleFactor(img.imagedata, img.width, toX, toY, domainAvg,
                                             buffer, blockSize, 0, 0, rangeAvg, blockSize);
@@ -148,6 +180,7 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
             }
         }
     }
+
 
   delete []buffer;
   buffer = NULL;
