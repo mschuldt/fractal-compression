@@ -1,11 +1,12 @@
 
-OPT = 
+OPT = -fopenmp -msse4 -O2 counters.cpp -std=c++11
 
 OBJ = IFSTransform.o\
 	Image.o\
 	Decoder.o\
 	Encoder.o\
-	QuadTreeEncoder.o
+	QuadTreeEncoder.o\
+	
 
 all: fractal
 
@@ -26,6 +27,8 @@ QuadTreeEncoder.o: QuadTreeEncoder.h QuadTreeEncoder.cpp
 
 fractal: $(OBJ) main.cpp
 	g++ $(OPT) -o fractal $(OBJ) main.cpp
+
+
 
 clean:
 	rm *.o
