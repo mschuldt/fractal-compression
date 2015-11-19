@@ -27,7 +27,8 @@ QuadTreeEncoder.o: QuadTreeEncoder.h QuadTreeEncoder.cpp
 fractal: $(OBJ) main.cpp
 	g++ $(OPT) -o fractal $(OBJ) main.cpp
 
-
+check:
+	cd test; ./test.sh
 
 clean:
 	rm *.o
