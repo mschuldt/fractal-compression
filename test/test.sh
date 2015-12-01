@@ -4,7 +4,7 @@ run () {
     # convert to raw format
     convert -depth 8 -size "$2" $1 in.rgb
     # Compress the image
-    ./../fractal -r -o 1 -t 100 -p 5 in.rgb
+    time ./../fractal -r -o 1 -t 100 -p 5 in.rgb
     # change extension to .rgb for convert utility
     mv output.raw output.rgb
     # convert raw image back to .jpg
@@ -25,5 +25,5 @@ check (){
     fi
 }
 
-time run lena256.jpg "256x256"
+run lena256.jpg "256x256"
 check lena256.jpg
