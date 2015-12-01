@@ -98,6 +98,7 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
         threshold *= 2;
 
       // Go through all the range blocks
+      #pragma omp parallel for
       for (int y = 0; y < img.height; y += BUFFER_SIZE)
         {
           for (int x = 0; x < img.width; x += BUFFER_SIZE)
@@ -149,7 +150,6 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
     
   
   // Go through all the downsampled domain blocks
-  //#pragma omp parallel for  
     for (int y = 0; y < img.height; y += blockSize * 2)
     {
       for (int x = 0; x < img.width; x += blockSize * 2)
@@ -208,16 +208,18 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
   else
     {
       // Use this transformation
-      transforms.push_back(
-                           new IFSTransform(
-                                            bestX, bestY,
-                                            toX, toY,
-                                            blockSize,
-                                            bestSymmetry,
-                                            bestScale,
-                                            bestOffset
-                                            )
-                           );
+      IFSTransform* new_transform = new IFSTransform(
+                                                     bestX, bestY,
+                                                     toX, toY,
+                                                     blockSize,
+                                                     bestSymmetry,
+                                                     bestScale,
+                                                     bestOffset
+                                                     );
+      #pragma omp critical
+      {
+        transforms.push_back(new_transform);
+      }
 
       if (verb >= 1)
         {
