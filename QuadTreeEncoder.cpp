@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#define N_THREADS 4
+
+
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
@@ -46,6 +49,7 @@ QuadTreeEncoder::~QuadTreeEncoder()
 {
 }
 
+
 Transforms* QuadTreeEncoder::Encode(Image* source)
 {
    //Initialize a hardware counter
@@ -60,7 +64,12 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
   img.channels = source->GetChannels();
   transforms->channels = img.channels;
   //#pragma omp parallel for
-  //PixelValue *
+
+  omp_set_num_threads(N_THREADS);
+  buffers = new PixelValue*[N_THREADS];
+  for (int i = 0; i < N_THREADS; i++){
+    buffers[i] = new PixelValue[BUFFER_SIZE * BUFFER_SIZE];
+  }
 
   for (int channel = 1; channel <= img.channels; channel++)
     {
@@ -131,19 +140,22 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
   double bestScale = 0;
   double bestError = 1e9;
 
-  PixelValue* buffer = new PixelValue[blockSize * blockSize];
-            // Get average pixel for the range block
+  
+  //PixelValue* buffer = new PixelValue[blockSize * blockSize];
+  
+  // Get average pixel for the range block
   
   int rangeAvg = GetAveragePixel(img.imagedata, img.width, toX, toY, blockSize);
     
   
   // Go through all the downsampled domain blocks
-
+  //#pragma omp parallel for  
     for (int y = 0; y < img.height; y += blockSize * 2)
     {
       for (int x = 0; x < img.width; x += blockSize * 2)
         {
-          
+          PixelValue* buffer = buffers[omp_get_thread_num()];
+
           for (int symmetry = 0; symmetry < IFSTransform::SYM_MAX; symmetry++)
             {
               IFSTransform::SYM symmetryEnum = (IFSTransform::SYM)symmetry;
@@ -162,7 +174,8 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
               // Get error and compare to best error so far
               double error = GetError(buffer, blockSize, 0, 0, domainAvg,
                                       img.imagedata, img.width, toX, toY, rangeAvg, blockSize, scale);
-
+              #pragma omp critical
+              {
               if (error < bestError)
                 {
                   bestError = error;
@@ -172,6 +185,7 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
                   bestScale = scale;
                   bestOffset = offset;
                 }
+              }
 
               delete ifs;
 
@@ -181,9 +195,6 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
         }
     }
 
-
-  delete []buffer;
-  buffer = NULL;
 
   if (blockSize > 2 && bestError >= threshold)
     {

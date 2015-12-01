@@ -27,6 +27,8 @@ class QuadTreeEncoder : public Encoder
 
   virtual Transforms* Encode(Image* source);
 
+  PixelValue** buffers;
+
  protected:
   void findMatchesFor(Transform& transforms, int toX, int toY, int blockSize);
 
