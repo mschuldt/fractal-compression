@@ -114,9 +114,9 @@ void Image::Load()
   img.imagedata3 = new PixelValue[size];
   for (int i = 0; i < size; i++)
     {
-      PixelValue R = chunk[i * 3];
-      PixelValue G = chunk[i * 3 + 1];
-      PixelValue B = chunk[i * 3 + 2];
+      PixelValue R = (PixelValue)(chunk[i * 3]);
+      PixelValue G = (PixelValue)(chunk[i * 3 + 1]);
+      PixelValue B = (PixelValue)(chunk[i * 3 + 2]);
 
       ConvertToYCbCr(
                      img.imagedata[i], img.imagedata2[i], img.imagedata3[i],
@@ -148,7 +148,9 @@ void Image::Save()
           PixelValue R, G, B;
           ConvertFromYCbCr(
                            R, G, B,
-                           img.imagedata[i], img.imagedata2[i], img.imagedata3[i]
+                           ((PixelValue*)img.imagedata)[i],
+                           ((PixelValue*)img.imagedata2)[i],
+                           ((PixelValue*)img.imagedata3)[i]
                            );
           chunk[i * 3 + 0] = static_cast<unsigned char> (R);
           chunk[i * 3 + 1] = static_cast<unsigned char> (G);
@@ -192,12 +194,17 @@ void Image::GetChannelData(int channel, PixelValue* buffer, int size)
       exit(-1);
     }
 
-  if (channel == 1)
-    memcpy(buffer, img.imagedata, size);
-  else if (channel == 2)
-    memcpy(buffer, img.imagedata2, size);
-  else if (channel == 3)
-    memcpy(buffer, img.imagedata3, size);
+  switch(channel){
+  case 1:
+    memcpy(buffer, img.imagedata, size*sizeof(PixelValue));
+    break;
+  case 2:
+    memcpy(buffer, img.imagedata2, size*sizeof(PixelValue));
+    break;
+  case 3:
+    memcpy(buffer, img.imagedata3, size*sizeof(PixelValue));
+    break;
+  }
 }
 
 void Image::SetChannelData(int channel, PixelValue* buffer, int size)
@@ -215,19 +222,19 @@ void Image::SetChannelData(int channel, PixelValue* buffer, int size)
     {
       imagedata = img.imagedata;
       img.imagedata = new PixelValue[size];
-      memcpy(img.imagedata, buffer, size);
+      memcpy(img.imagedata, buffer, size*sizeof(PixelValue));
     }
   else if (channel == 2)
     {
       imagedata = img.imagedata2;
       img.imagedata2 = new PixelValue[size];
-      memcpy(img.imagedata2, buffer, size);
+      memcpy(img.imagedata2, buffer, size*sizeof(PixelValue));
     }
   else if (channel == 3)
     {
       imagedata = img.imagedata3;
       img.imagedata3 = new PixelValue[size];
-      memcpy(img.imagedata3, buffer, size);
+      memcpy(img.imagedata3, buffer, size*sizeof(PixelValue));
     }
 
   if (imagedata != NULL)

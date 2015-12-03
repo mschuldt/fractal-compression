@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #ifndef IMAGE_H
 #define IMAGE_H
 
-typedef unsigned char PixelValue;
+//typedef unsigned char PixelValue;
+typedef unsigned int PixelValue;
 
 class ImageData
 {
