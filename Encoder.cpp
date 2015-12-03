@@ -128,79 +128,78 @@ double Encoder::GetError(
       __m128i scaled;
       __m128i diff;
 
-#define body(x) do{ \
+#define body(x) do{                                                     \
         domain = _mm_sub_epi32(_mm_load_si128((__m128i const *)(domain_ptr+x)), domainAvgVec); \
         range = _mm_sub_epi32(_mm_load_si128((__m128i const *)(range_ptr+x)), rangeAvgVec); \
-        scaled = _mm_cvtps_epi32(_mm_mul_ps(scaleVec, \
-                                            _mm_cvtepi32_ps(domain))); \
-        diff = _mm_sub_epi32(scaled, range); \
-        top = _mm_add_epi32(top, _mm_mullo_epi32(diff, diff)); \
+        scaled = _mm_cvtps_epi32(_mm_mul_ps(scaleVec,                   \
+                                            _mm_cvtepi32_ps(domain)));  \
+        diff = _mm_sub_epi32(scaled, range);                            \
+        top = _mm_add_epi32(top, _mm_mullo_epi32(diff, diff));          \
       } while (0);
 
       switch (size){
 
-      case 16:
-        for (int y = 0; y < size; y++)
-          {
-            domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
-            range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;            
-            body(0);
-            body(4);
-            body(8);
-            body(12);
-          }
-        break;
+    case 16:
+      for (int y = 0; y < size; y++)
+        {
+      domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
+      range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;            
+      body(0);
+      body(4);
+      body(8);
+      body(12);
+    }
+      break;
 
-      case 8:
-        for (int y = 0; y < size; y++)
-          {
-            domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
-            range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;
-            body(0);
-            body(4);
-          }
-        break;
-      case 4:
-        for (int y = 0; y < size; y++)
-          {
-            domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
-            range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;            
-            body(0);
-          }
-        break;
+    case 8:
+      for (int y = 0; y < size; y++)
+        {
+      domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
+      range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;
+      body(0);
+      body(4);
+    }
+      break;
+    case 4:
+      for (int y = 0; y < size; y++)
+        {
+      domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
+      range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;            
+      body(0);
+    }
+      break;
 
-      default:
-        printf("ERROR: (default case) size=%d\n", size);
-        exit(1);
-      }
-
+    default:
+      printf("ERROR: (default case) size=%d\n", size);
+      exit(1);
+    }
       unsigned int* temp_i = temp_ints[omp_get_thread_num()];
       _mm_store_si128((__m128i*)temp_i, top);
       return ((temp_i[0] + temp_i[1] + temp_i[2] + temp_i[3]) / bottom);
     }
-  }
-
-
-int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
-                             int domainX, int domainY, int size)
-{
-  int top = 0;
-  int bottom = (size * size);
-
-  // Simple average of all pixels.
-  for (int y = domainY; y < domainY + size; y++)
-    {
-      for (int x = domainX; x < domainX + size; x++)
-        {
-          top += domainData[y * domainWidth + x];
-
-          if (top < 0)
-            {
-              printf("Error: Accumulator rolled over averaging pixels.\n");
-              exit(-1);
-            }
-        }
     }
 
-  return (top / bottom);
-}
+
+      int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
+        int domainX, int domainY, int size)
+      {
+      int top = 0;
+      int bottom = (size * size);
+
+      // Simple average of all pixels.
+      for (int y = domainY; y < domainY + size; y++)
+        {
+      for (int x = domainX; x < domainX + size; x++)
+        {
+      top += domainData[y * domainWidth + x];
+
+      if (top < 0)
+        {
+      printf("Error: Accumulator rolled over averaging pixels.\n");
+      exit(-1);
+    }
+    }
+    }
+
+      return (top / bottom);
+    }
