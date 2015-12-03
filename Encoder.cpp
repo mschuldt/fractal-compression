@@ -22,6 +22,7 @@
 #include <pmmintrin.h>
 #include <tmmintrin.h>
 #include <smmintrin.h>
+#include "emmintrin.h"
 #include <omp.h>
 using namespace std;
 
@@ -31,10 +32,8 @@ using namespace std;
 
 Encoder::Encoder(){
   temp_ints = new unsigned int* [N_THREADS];
-  temp_floats = new float* [N_THREADS];
   for (int i = 0; i < N_THREADS; i++){
     temp_ints[i] = new unsigned int[4];
-    temp_floats[i] = new float[4];
   }
 }
 
@@ -102,16 +101,16 @@ double Encoder::GetError(
       int domain, range, diff;
       domain_ptr = domainData + (domainY) * domainWidth + domainX;
       range_ptr = rangeData + (rangeY) * rangeWidth + rangeX;          
-      diff = (int)(scale * (double)(*domain_ptr - domainAvg))
+      diff = (int)(scale * (float)(*domain_ptr - domainAvg))
         - (*range_ptr - rangeAvg);
       top = (diff * diff);
-      diff = (int)(scale * (double)(*(domain_ptr + 1) - domainAvg))
+      diff = (int)(scale * (float)(*(domain_ptr + 1) - domainAvg))
         - (*range_ptr - rangeAvg);
       top += (diff * diff);          
-      diff = (int)(scale * (double)(*domain_ptr - domainAvg))
+      diff = (int)(scale * (float)(*domain_ptr - domainAvg))
         - (*(range_ptr + 1) - rangeAvg);
       top += (diff * diff);
-      diff = (int)(scale * (double)(*(domain_ptr + 1) - domainAvg))
+      diff = (int)(scale * (float)(*(domain_ptr + 1) - domainAvg))
         - (*(range_ptr + 1) - rangeAvg);
       top += (diff * diff);          
       return top/bottom;
@@ -119,27 +118,9 @@ double Encoder::GetError(
     } else {
 
       __m128i top = _mm_setzero_si128();
-
-      unsigned int* temp_i = temp_ints[omp_get_thread_num()];
-      float* temp_f = temp_floats[omp_get_thread_num()];
-
-      temp_i[0] = domainAvg;
-      temp_i[1] = domainAvg;
-      temp_i[2] = domainAvg;
-      temp_i[3] = domainAvg;
-      __m128i domainAvgVec = _mm_load_si128((__m128i const *)temp_i);
-
-      temp_i[0] = rangeAvg;
-      temp_i[1] = rangeAvg;
-      temp_i[2] = rangeAvg;
-      temp_i[3] = rangeAvg;
-      __m128i rangeAvgVec = _mm_load_si128((__m128i const *)temp_i);
-
-      temp_f[0] = scale;
-      temp_f[1] = scale;
-      temp_f[2] = scale;
-      temp_f[3] = scale;
-      __m128 scaleVec = _mm_load_ps(temp_f);
+      __m128i domainAvgVec = _mm_set1_epi32(domainAvg);
+      __m128i rangeAvgVec = _mm_set1_epi32(rangeAvg);
+      __m128 scaleVec = _mm_set1_ps(scale);
 
       __m128i domain;
       __m128i range;
@@ -193,6 +174,7 @@ double Encoder::GetError(
         exit(1);
       }
 
+      unsigned int* temp_i = temp_ints[omp_get_thread_num()];
       _mm_store_si128((__m128i*)temp_i, top);
       return ((temp_i[0] + temp_i[1] + temp_i[2] + temp_i[3]) / bottom);
     }

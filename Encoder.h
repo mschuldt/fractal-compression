@@ -44,7 +44,6 @@ class Encoder
                   int size, double scale);
 
   unsigned int **temp_ints;
-  float **temp_floats;
 
  protected:
   ImageData img;
