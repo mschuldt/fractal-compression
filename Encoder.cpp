@@ -108,8 +108,6 @@ double Encoder::GetError(
       diff = (int)(scale * (double)(*(domain_ptr + 1) - domainAvg))
         - (*range_ptr - rangeAvg);
       top += (diff * diff);          
-      domain_ptr = domainData + (domainY) * domainWidth + domainX;
-      range_ptr = rangeData + (rangeY) * rangeWidth + rangeX;          
       diff = (int)(scale * (double)(*domain_ptr - domainAvg))
         - (*(range_ptr + 1) - rangeAvg);
       top += (diff * diff);
@@ -143,30 +141,55 @@ double Encoder::GetError(
       temp_f[3] = scale;
       __m128 scaleVec = _mm_load_ps(temp_f);
 
+      __m128i domain;
+      __m128i range;
+      __m128 domain_ps;
+      __m128i scaled;
+      __m128i diff;
+
+#define body(x) do{ \
+        domain = _mm_sub_epi32(_mm_load_si128((__m128i const *)(domain_ptr+x)), domainAvgVec); \
+        range = _mm_sub_epi32(_mm_load_si128((__m128i const *)(range_ptr+x)), rangeAvgVec); \
+        scaled = _mm_cvtps_epi32(_mm_mul_ps(scaleVec, \
+                                            _mm_cvtepi32_ps(domain))); \
+        diff = _mm_sub_epi32(scaled, range); \
+        top = _mm_add_epi32(top, _mm_mullo_epi32(diff, diff)); \
+      } while (0);
+
       switch (size){
+
       case 16:
+        for (int y = 0; y < size; y++)
+          {
+            domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
+            range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;            
+            body(0);
+            body(4);
+            body(8);
+            body(12);
+          }
+        break;
+
       case 8:
-      case 4:
         for (int y = 0; y < size; y++)
           {
             domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
             range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;
-            for (int x = 0; x < size; x+=4)
-              {
-                __m128i domain = _mm_load_si128((__m128i const *)(domain_ptr + x));
-                domain = _mm_sub_epi32(domain, domainAvgVec);
-                __m128i range = _mm_load_si128((__m128i const *)(range_ptr + x));
-                range = _mm_sub_epi32(range, rangeAvgVec);
-                __m128 domain_ps = _mm_cvtepi32_ps(domain);
-                __m128i scaled = _mm_cvtps_epi32(_mm_mul_ps(scaleVec, domain_ps));
-                __m128i diff = _mm_sub_epi32(scaled, range);
-                top = _mm_add_epi32(top, _mm_mullo_epi32(diff, diff));
-              }
+            body(0);
+            body(4);
+          }
+        break;
+      case 4:
+        for (int y = 0; y < size; y++)
+          {
+            domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
+            range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;            
+            body(0);
           }
         break;
 
       default:
-        printf("default case, size=%d\n", size);
+        printf("ERROR: (default case) size=%d\n", size);
         exit(1);
       }
 
