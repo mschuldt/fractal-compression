@@ -35,7 +35,7 @@ using namespace std;
 extern int verb;
 extern bool useYCbCr;
 
-#define BUFFER_SIZE		(16)
+#define BUFFER_SIZE		(8)
 
 QuadTreeEncoder::QuadTreeEncoder(int threshold, bool symmetry)
 {
