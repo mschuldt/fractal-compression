@@ -76,109 +76,105 @@ double Encoder::GetScaleFactor(
 
 void print128i(__m128i var)
 {
-    unsigned int *val = (unsigned int*) &var;
-    printf("__m128i: %d %d %d %d\n", val[0], val[1], val[2], val[3]);
+  unsigned int *val = (unsigned int*) &var;
+  printf("__m128i: %d %d %d %d\n", val[0], val[1], val[2], val[3]);
 }
 
 void print128(__m128 var)
 {
-    float *val = (float*) &var;
-    printf("__m128: %f %f %f %f\n", val[0], val[1], val[2], val[3]);
+  float *val = (float*) &var;
+  printf("__m128: %f %f %f %f\n", val[0], val[1], val[2], val[3]);
 }
 
 double Encoder::GetError(
                          PixelValue* domainData, int domainWidth, int domainX, int domainY, int domainAvg,
                          PixelValue* rangeData, int rangeWidth, int rangeX, int rangeY, int rangeAvg,
                          int size, double scale)
-  {
-    // printf("domainAvg = %d\nrangeAvg = %d\nscale = %f\n", domainAvg, rangeAvg, scale);
-    float bottom = (float)(size * size);
-    PixelValue * domain_ptr;
-    PixelValue * range_ptr;
+{
+  // printf("domainAvg = %d\nrangeAvg = %d\nscale = %f\n", domainAvg, rangeAvg, scale);
+  float bottom = (float)(size * size);
+  PixelValue * domain_ptr;
+  PixelValue * range_ptr;
 
-    if (size == 2){
-      int top;
-      int domain, range, diff;
-      domain_ptr = domainData + (domainY) * domainWidth + domainX;
-      range_ptr = rangeData + (rangeY) * rangeWidth + rangeX;          
-      diff = (int)(scale * (float)(*domain_ptr - domainAvg))
-        - (*range_ptr - rangeAvg);
-      top = (diff * diff);
-      diff = (int)(scale * (float)(*(domain_ptr + 1) - domainAvg))
-        - (*range_ptr - rangeAvg);
-      top += (diff * diff);          
-      diff = (int)(scale * (float)(*domain_ptr - domainAvg))
-        - (*(range_ptr + 1) - rangeAvg);
-      top += (diff * diff);
-      diff = (int)(scale * (float)(*(domain_ptr + 1) - domainAvg))
-        - (*(range_ptr + 1) - rangeAvg);
-      top += (diff * diff);          
-      return top/bottom;
+  if (size == 2){
+    int top;
+    int domain, range, diff;
+    domain_ptr = domainData + (domainY) * domainWidth + domainX;
+    range_ptr = rangeData + (rangeY) * rangeWidth + rangeX;          
+    diff = (int)(scale * (float)(*domain_ptr - domainAvg))
+      - (*range_ptr - rangeAvg);
+    top = (diff * diff);
+    diff = (int)(scale * (float)(*(domain_ptr + 1) - domainAvg))
+      - (*range_ptr - rangeAvg);
+    top += (diff * diff);          
+    diff = (int)(scale * (float)(*domain_ptr - domainAvg))
+      - (*(range_ptr + 1) - rangeAvg);
+    top += (diff * diff);
+    diff = (int)(scale * (float)(*(domain_ptr + 1) - domainAvg))
+      - (*(range_ptr + 1) - rangeAvg);
+    top += (diff * diff);          
+    return top/bottom;
 
-    } else {
+  } else {
 
-      __m128i top = _mm_setzero_si128();
-      __m128i domainAvgVec = _mm_set1_epi32(domainAvg);
-      __m128i rangeAvgVec = _mm_set1_epi32(rangeAvg);
-      __m128 scaleVec = _mm_set1_ps(scale);
+    __m128i top = _mm_setzero_si128();
+    __m128i domainAvgVec = _mm_set1_epi32(domainAvg);
+    __m128i rangeAvgVec = _mm_set1_epi32(rangeAvg);
+    __m128 scaleVec = _mm_set1_ps(scale);
 
-      __m128i domain;
-      __m128i range;
-      __m128 domain_ps;
-      __m128i scaled;
-      __m128i diff;
+    __m128i domain;
+    __m128i range;
+    __m128 domain_ps;
+    __m128i scaled;
+    __m128i diff;
 
-#define body(x) do{ \
+#define body(x) do{                                                     \
         domain = _mm_sub_epi32(_mm_load_si128((__m128i const *)(domain_ptr+x)), domainAvgVec); \
         range = _mm_sub_epi32(_mm_load_si128((__m128i const *)(range_ptr+x)), rangeAvgVec); \
-        scaled = _mm_cvtps_epi32(_mm_mul_ps(scaleVec, \
-                                            _mm_cvtepi32_ps(domain))); \
-        diff = _mm_sub_epi32(scaled, range); \
-        top = _mm_add_epi32(top, _mm_mullo_epi32(diff, diff)); \
+        scaled = _mm_cvtps_epi32(_mm_mul_ps(scaleVec,                   \
+                                            _mm_cvtepi32_ps(domain)));  \
+        diff = _mm_sub_epi32(scaled, range);                            \
+        top = _mm_add_epi32(top, _mm_mullo_epi32(diff, diff));          \
       } while (0);
 
-      switch (size){
+    switch (size){
 
-      case 16:
-        for (int y = 0; y < size; y++)
-          {
-            domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
-            range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;            
-            body(0);
-            body(4);
-            body(8);
-            body(12);
-          }
-        break;
-
-      case 8:
-        for (int y = 0; y < size; y++)
-          {
-            domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
-            range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;
-            body(0);
-            body(4);
-          }
-        break;
-      case 4:
-        for (int y = 0; y < size; y++)
-          {
-            domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
-            range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;            
-            body(0);
-          }
-        break;
-
-      default:
-        printf("ERROR: (default case) size=%d\n", size);
-        exit(1);
+    case 16:
+      for (int y = 0; y < size; y++){
+        domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
+        range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;            
+        body(0);
+        body(4);
+        body(8);
+        body(12);
       }
+      break;
 
-      unsigned int* temp_i = temp_ints[omp_get_thread_num()];
-      _mm_store_si128((__m128i*)temp_i, top);
-      return ((temp_i[0] + temp_i[1] + temp_i[2] + temp_i[3]) / bottom);
+    case 8:
+      for (int y = 0; y < size; y++){
+        domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
+        range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;
+        body(0);
+        body(4);
+      }
+      break;
+    case 4:
+      for (int y = 0; y < size; y++){
+        domain_ptr = domainData + (domainY + y) * domainWidth + domainX;
+        range_ptr = rangeData + (rangeY + y) * rangeWidth + rangeX;            
+        body(0);
+      }
+      break;
+
+    default:
+      printf("ERROR: (default case) size=%d\n", size);
+      exit(1);
     }
+    unsigned int* temp_i = temp_ints[omp_get_thread_num()];
+    _mm_store_si128((__m128i*)temp_i, top);
+    return ((temp_i[0] + temp_i[1] + temp_i[2] + temp_i[3]) / bottom);
   }
+}
 
 
 int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
