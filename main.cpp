@@ -51,6 +51,7 @@ void Convert(Encoder* enc, Image* source, int maxphases, int output)
   int width = source->GetWidth();
   int height = source->GetHeight();
   int imagesize = source->GetOriginalSize();
+  printf("width = %d, hight = %d, imagesisze = %d", width, height, imagesize);
 
   printf("Encoding...\n");
   DWORD time = GetTickCount();
@@ -66,7 +67,7 @@ void Convert(Encoder* enc, Image* source, int maxphases, int output)
   printf("Raw image bytes per transform: %d\n", imagesize/numTransforms);
 
   int transformSize = numTransforms * sizeof(IFSTransform);
-  float bogocompressionratio = imagesize/(transformSize/sizeof(int));
+  float bogocompressionratio = imagesize/((float)transformSize/sizeof(int));
   printf("Compression Ratio: %f:1\n", bogocompressionratio);
 
   printf("Decoding...\n");

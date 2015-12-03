@@ -17,6 +17,8 @@
 #ifndef E_H
 #define E_H
 
+#define N_THREADS 4
+
 class Encoder
 {
  public:
@@ -41,8 +43,8 @@ class Encoder
                   PixelValue* rangeData, int rangeWidth, int rangeX, int rangeY, int rangeAvg,
                   int size, double scale);
 
-  unsigned int *temp1;
-  float *temp2;
+  unsigned int **temp_ints;
+  float **temp_floats;
 
  protected:
   ImageData img;

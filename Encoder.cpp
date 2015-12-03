@@ -22,6 +22,7 @@
 #include <pmmintrin.h>
 #include <tmmintrin.h>
 #include <smmintrin.h>
+#include <omp.h>
 using namespace std;
 
 #include "Image.h"
@@ -29,8 +30,12 @@ using namespace std;
 #include "Encoder.h"
 
 Encoder::Encoder(){
-  temp1 = new unsigned int [4];
-  temp2 = new float [4];
+  temp_ints = new unsigned int* [N_THREADS];
+  temp_floats = new float* [N_THREADS];
+  for (int i = 0; i < N_THREADS; i++){
+    temp_ints[i] = new unsigned int[4];
+    temp_floats[i] = new float[4];
+  }
 }
 
 double Encoder::GetScaleFactor(
@@ -93,24 +98,27 @@ double Encoder::GetError(
 
   float bottom = (float)(size * size);
 
-  temp1[0] = domainAvg;
-  temp1[1] = domainAvg;
-  temp1[2] = domainAvg;
-  temp1[3] = domainAvg;
-  __m128i domainAvgVec = _mm_load_si128((__m128i const *)temp1);
+  unsigned int* temp_i = temp_ints[omp_get_thread_num()];
+  float* temp_f = temp_floats[omp_get_thread_num()];
+
+  temp_i[0] = domainAvg;
+  temp_i[1] = domainAvg;
+  temp_i[2] = domainAvg;
+  temp_i[3] = domainAvg;
+  __m128i domainAvgVec = _mm_load_si128((__m128i const *)temp_i);
 
 
-  temp1[0] = rangeAvg;
-  temp1[1] = rangeAvg;
-  temp1[2] = rangeAvg;
-  temp1[3] = rangeAvg;
-  __m128i rangeAvgVec = _mm_load_si128((__m128i const *)temp1);
+  temp_i[0] = rangeAvg;
+  temp_i[1] = rangeAvg;
+  temp_i[2] = rangeAvg;
+  temp_i[3] = rangeAvg;
+  __m128i rangeAvgVec = _mm_load_si128((__m128i const *)temp_i);
 
-  temp2[0] = scale;
-  temp2[1] = scale;
-  temp2[2] = scale;
-  temp2[3] = scale;
-  __m128 scaleVec = _mm_load_ps(temp2);
+  temp_f[0] = scale;
+  temp_f[1] = scale;
+  temp_f[2] = scale;
+  temp_f[3] = scale;
+  __m128 scaleVec = _mm_load_ps(temp_f);
   PixelValue * domain_ptr;
   PixelValue * range_ptr;
   switch (size){
@@ -134,6 +142,7 @@ double Encoder::GetError(
           }
       }
     break;
+
   case 2:
     {
       int top = 0;
@@ -141,30 +150,25 @@ double Encoder::GetError(
         {
           for (int x = 0; x < size; x++)
             {
-            
+
               int domain = (domainData[(domainY + y) * domainWidth + (domainX + x)] - domainAvg);
               int range = (rangeData[(rangeY + y) * rangeWidth + (rangeX + x)] - rangeAvg);
               int diff = (int)(scale * (double)domain) - range;
-            
+
               // According to the formula we want (DIFF*DIFF)/(SIZE*SIZE)
               top += (diff * diff);
-              
+
             }
         }
+      return top/bottom;
     }
-    break;
-      default:
-        printf("default case\n");
-        exit(1);
+  default:
+    printf("default case\n");
+    exit(1);
   }
-  
-  //  printf("top==>"); print128i(top);
-    _mm_store_si128((__m128i*)temp1, top);
-    //printf("=> %f\n", ((temp1[0] + temp1[1] + temp1[2] + temp1[3]) / bottom));
-    double ret = ((temp1[0] + temp1[1] + temp1[2] + temp1[3]) / bottom);
-    //printf("ret=> %f\n", ret);
-    return ret;
-  //printf("=> %f\n", top / bottom);
+
+  _mm_store_si128((__m128i*)temp_i, top);
+  return ((temp_i[0] + temp_i[1] + temp_i[2] + temp_i[3]) / bottom);
 }
 
 
