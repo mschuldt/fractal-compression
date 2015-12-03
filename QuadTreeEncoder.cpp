@@ -98,7 +98,7 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
         threshold *= 2;
 
       // Go through all the range blocks
-      #pragma omp parallel for
+      //#pragma omp parallel for
       for (int y = 0; y < img.height; y += BUFFER_SIZE)
         {
           for (int x = 0; x < img.width; x += BUFFER_SIZE)

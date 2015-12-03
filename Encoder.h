@@ -21,6 +21,8 @@ class Encoder
 {
  public:
 
+  Encoder();
+
   virtual ~Encoder() {};
 
   virtual Transforms* Encode(Image* source) = 0;
@@ -38,6 +40,9 @@ class Encoder
                   PixelValue* domainData, int domainWidth, int domainX, int domainY, int domainAvg,
                   PixelValue* rangeData, int rangeWidth, int rangeX, int rangeY, int rangeAvg,
                   int size, double scale);
+
+  unsigned int *temp1;
+  float *temp2;
 
  protected:
   ImageData img;
