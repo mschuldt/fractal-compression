@@ -179,6 +179,7 @@ double Encoder::GetError(
     }
     }
 
+
 int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
                              int domainX, int domainY, int size)
 {
@@ -235,4 +236,3 @@ int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
     }
     return (top / bottom);
 }
-
