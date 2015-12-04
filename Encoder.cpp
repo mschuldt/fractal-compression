@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#define use_fast_GetError 1
+#define use_fast_GetAveragePixel 1
+
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
@@ -86,6 +89,7 @@ void print128(__m128 var)
   printf("__m128: %f %f %f %f\n", val[0], val[1], val[2], val[3]);
 }
 
+#if use_fast_GetError
 double Encoder::GetError(
                          PixelValue* domainData, int domainWidth, int domainX, int domainY, int domainAvg,
                          PixelValue* rangeData, int rangeWidth, int rangeX, int rangeY, int rangeAvg,
@@ -176,6 +180,41 @@ double Encoder::GetError(
   }
 }
 
+#else //use_fast_GetError
+
+double Encoder::GetError(
+                         PixelValue* domainData, int domainWidth, int domainX, int domainY, int domainAvg,
+                         PixelValue* rangeData, int rangeWidth, int rangeX, int rangeY, int rangeAvg,
+                         int size, double scale)
+{
+  double top = 0;
+  double bottom = (double)(size * size);
+
+  for (int y = 0; y < size; y++)
+    {
+      for (int x = 0; x < size; x++)
+        {
+          int domain = (domainData[(domainY + y) * domainWidth + (domainX + x)] - domainAvg);
+          int range = (rangeData[(rangeY + y) * rangeWidth + (rangeX + x)] - rangeAvg);
+          int diff = (int)(scale * (double)domain) - range;
+
+          // According to the formula we want (DIFF*DIFF)/(SIZE*SIZE)
+          top += (diff * diff);
+
+          if (top < 0)
+            {
+              printf("Error: Overflow occured during error %lf\n", top);
+              exit(-1);
+            }
+        }
+    }
+
+  return (top / bottom);
+}
+#endif // use_fast_GetError
+
+#if use_fast_GetAveragePixel
+
 int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
                              int domainX, int domainY, int size)
 {
@@ -232,3 +271,32 @@ int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
     }
     return (top / bottom);
 }
+
+#else // use_fast_GetAveragePixel
+
+int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
+                             int domainX, int domainY, int size)
+{
+  int top = 0;
+  int bottom = (size * size);
+
+  // Simple average of all pixels.
+  for (int y = domainY; y < domainY + size; y++)
+    {
+      for (int x = domainX; x < domainX + size; x++)
+        {
+          top += domainData[y * domainWidth + x];
+
+          if (top < 0)
+            {
+              printf("Error: Accumulator rolled over averaging pixels.\n");
+              exit(-1);
+            }
+        }
+    }
+
+  return (top / bottom);
+}
+
+#endif // use_fast_GetAveragePixel
+
