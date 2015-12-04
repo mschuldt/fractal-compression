@@ -179,27 +179,60 @@ double Encoder::GetError(
     }
     }
 
-
-      int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
-        int domainX, int domainY, int size)
-      {
-      int top = 0;
-      int bottom = (size * size);
-
-      // Simple average of all pixels.
-      for (int y = domainY; y < domainY + size; y++)
-        {
-      for (int x = domainX; x < domainX + size; x++)
-        {
-      top += domainData[y * domainWidth + x];
-
-      if (top < 0)
-        {
-      printf("Error: Accumulator rolled over averaging pixels.\n");
-      exit(-1);
+int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
+                             int domainX, int domainY, int size)
+{
+    int top = 0;
+    int bottom = (size * size);
+    if(size == 2){
+        top += domainData[domainY * domainWidth + domainX];
+        top += domainData[domainY * domainWidth + domainX+1];
+        top += domainData[(domainY+1) * domainWidth + domainX];
+        top += domainData[(domainY+1) * domainWidth + domainX+1];
+        
+    }else{
+        __m128i v1 = _mm_setzero_si128();
+        __m128i v2 = _mm_setzero_si128();
+        __m128i v3 = _mm_setzero_si128();
+        __m128i v4 = _mm_setzero_si128();
+        __m128i vsum = _mm_setzero_si128();
+        switch(size){
+            case 4:
+                v1 = _mm_load_si128 ((__m128i const *)&domainData[domainY * domainWidth + domainX]);
+                v2 = _mm_load_si128 ((__m128i const *)&domainData[(domainY+1) * domainWidth + domainX]);
+                v3 = _mm_load_si128 ((__m128i const *)&domainData[(domainY+2) * domainWidth + domainX]);
+                v4 = _mm_load_si128 ((__m128i const *)&domainData[(domainY+3) * domainWidth + domainX]);
+                vsum = _mm_add_epi32(vsum, v1);
+                vsum = _mm_add_epi32(vsum, v2);
+                vsum = _mm_add_epi32(vsum, v3);
+                vsum = _mm_add_epi32(vsum, v4);
+                break;
+            case 8:
+                for(int y = domainY; y<domainY+size; y++){
+                    v1 = _mm_load_si128 ((__m128i const *)&domainData[y * domainWidth + domainX]);
+                    v2 = _mm_load_si128 ((__m128i const *)&domainData[y * domainWidth + domainX + 4]);
+                    vsum = _mm_add_epi32(vsum, v1);
+                    vsum = _mm_add_epi32(vsum, v2);
+                }
+                break;
+                
+            case 16:
+                for(int y = domainY; y<domainY+size; y++){
+                    v1 = _mm_load_si128 ((__m128i const *)&domainData[y * domainWidth + domainX]);
+                    v2 = _mm_load_si128 ((__m128i const *)&domainData[y * domainWidth + domainX + 4]);
+                    v3 = _mm_load_si128 ((__m128i const *)&domainData[y * domainWidth + domainX + 8]);
+                    v4 = _mm_load_si128 ((__m128i const *)&domainData[y * domainWidth + domainX + 12]);
+                    vsum = _mm_add_epi32(vsum, v1);
+                    vsum = _mm_add_epi32(vsum, v2);
+                    vsum = _mm_add_epi32(vsum, v3);
+                    vsum = _mm_add_epi32(vsum, v4);
+                }
+                break;
+        }
+        vsum = _mm_add_epi32(vsum, _mm_srli_si128(vsum, 8));
+        vsum = _mm_add_epi32(vsum, _mm_srli_si128(vsum, 4));
+        top = _mm_cvtsi128_si32(vsum);
     }
-    }
-    }
+    return (top / bottom);
+}
 
-      return (top / bottom);
-    }
