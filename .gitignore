@@ -1,4 +1,5 @@
 *.o
 *.jpg_out.jpg
+*.jpg_diff.jpg
 *.rgb
 fractal
