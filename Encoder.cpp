@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#define use_fast_GetError 1
-#define use_fast_GetAveragePixel 1
+#define use_simd_GetScaleFactor true
+#define use_simd_GetError true
+#define use_simd_GetAveragePixel true
 
 #include "count_ops.h"
 
@@ -44,6 +45,8 @@ Encoder::Encoder(){
     temp_ints[i] = new unsigned int[4];
   }
 }
+
+#if use_simd_GetScaleFactor
 
 double Encoder::GetScaleFactor(
                                PixelValue* domainData, int domainWidth, int domainX, int domainY, int domainAvg,
@@ -134,6 +137,53 @@ double Encoder::GetScaleFactor(
   return ((double)top) / ((double)bottom);
 }
 
+#else //use_simd_GetScaleFactor
+
+double Encoder::GetScaleFactor(
+                               PixelValue* domainData, int domainWidth, int domainX, int domainY, int domainAvg,
+                               PixelValue* rangeData, int rangeWidth, int rangeX, int rangeY, int rangeAvg,
+                               int size)
+{
+  int top = 0;
+  int bottom = 0;
+
+  for (int y = 0; y < size; y++)
+    {
+      INC_OP(2);
+      for (int x = 0; x < size; x++)
+        {
+          INC_OP(12);
+          int domain = (domainData[(domainY + y) * domainWidth + (domainX + x)] - domainAvg);
+          int range = (rangeData[(rangeY + y) * rangeWidth + (rangeX + x)] - rangeAvg);
+
+          // According to the formula we want (R*D) / (D*D)
+          INC_OP(4);
+          top += range * domain;
+          bottom += domain * domain;
+
+          INC_OP(1);
+          if (bottom < 0)
+            {
+              printf("Error: Overflow occured during scaling %d %d %d %d\n",
+                     y, domainWidth, bottom, top);
+              exit(-1);
+            }
+        }
+    }
+
+  INC_OP(1);
+
+  if (bottom == 0)
+    {
+      top = 0;
+      bottom = 1;
+    }
+
+  return ((double)top) / ((double)bottom);
+}
+
+#endif //use_simd_GetScaleFactor
+
 void print128i(__m128i var)
 {
     unsigned int *val = (unsigned int*) &var;
@@ -146,7 +196,7 @@ void print128(__m128 var)
     printf("__m128: %f %f %f %f\n", val[0], val[1], val[2], val[3]);
 }
 
-#if use_fast_GetError
+#if use_simd_GetError
 
 double Encoder::GetError(
                          PixelValue* domainData, int domainWidth, int domainX, int domainY, int domainAvg,
@@ -245,6 +295,9 @@ double Encoder::GetError(
                          PixelValue* rangeData, int rangeWidth, int rangeX, int rangeY, int rangeAvg,
                          int size, double scale)
 {
+  double top = 0;
+  double bottom = (double)(size * size);
+
   for (int y = 0; y < size; y++)
     {
       for (int x = 0; x < size; x++)
@@ -267,9 +320,9 @@ double Encoder::GetError(
   return (top / bottom);
 }
 
-#endif // use_fast_GetError
+#endif // use_simd_GetError
 
-#if use_fast_GetAveragePixel
+#if use_simd_GetAveragePixel
 
 int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
                              int domainX, int domainY, int size)
@@ -328,7 +381,7 @@ int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
   return (top / bottom);
 }
 
-#else // use_fast_GetAveragePixel
+#else // use_simd_GetAveragePixel
 
 int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
                              int domainX, int domainY, int size)
@@ -356,4 +409,4 @@ int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
   INC_OP(1);
   return (top / bottom);
 }
-#endif //use_fast_GetAveragePixel
+#endif //use_simd_GetAveragePixel
