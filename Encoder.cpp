@@ -300,15 +300,18 @@ double Encoder::GetError(
 
   for (int y = 0; y < size; y++)
     {
+      INC_OP(2);
       for (int x = 0; x < size; x++)
         {
+          INC_OP(14);
           int domain = (domainData[(domainY + y) * domainWidth + (domainX + x)] - domainAvg);
           int range = (rangeData[(rangeY + y) * rangeWidth + (rangeX + x)] - rangeAvg);
           int diff = (int)(scale * (double)domain) - range;
 
           // According to the formula we want (DIFF*DIFF)/(SIZE*SIZE)
+          INC_OP(2);
           top += (diff * diff);
-
+          INC_OP(1);
           if (top < 0)
             {
               printf("Error: Overflow occured during error %lf\n", top);
@@ -316,7 +319,7 @@ double Encoder::GetError(
             }
         }
     }
-
+  INC_OP(1);
   return (top / bottom);
 }
 
