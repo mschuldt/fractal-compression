@@ -282,11 +282,8 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
               double error = GetError(buffer, blockSize, 0, 0, domainAvg,
                                       img.imagedata, img.width, toX, toY, rangeAvg, blockSize, scale);
               
-              #ifndef IFS_EXECUTE_NEW
-              #pragma omp critical
-              #endif
-              {
-                INC_OP(1);
+              
+              INC_OP(1);
               if (error < bestError)
                 {
                   bestError = error;
@@ -296,7 +293,6 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
                   bestScale = scale;
                   bestOffset = offset;
                 }
-              }
 
               #ifdef IFS_EXECUTE_NEW
                 buffer += pixelCount;
