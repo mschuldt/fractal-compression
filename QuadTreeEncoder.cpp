@@ -38,6 +38,7 @@ extern int verb;
 extern bool useYCbCr;
 
 #define BUFFER_SIZE		(16)
+#define IFS_EXECUTE_NEW
 
 QuadTreeEncoder::QuadTreeEncoder(int threshold, bool symmetry)
 {
@@ -65,10 +66,29 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
   transforms->channels = img.channels;
 
   omp_set_num_threads(N_THREADS);
-  buffers = new PixelValue*[N_THREADS];
-  for (int i = 0; i < N_THREADS; i++){
-    buffers[i] = new PixelValue[BUFFER_SIZE * BUFFER_SIZE];
-  }
+  #ifndef IFS_EXECUTE_NEW
+    buffers = new PixelValue*[N_THREADS];
+    for (int i = 0; i < N_THREADS; i++){
+      buffers[i] = new PixelValue[BUFFER_SIZE * BUFFER_SIZE];
+    }
+  #endif
+
+  /*
+    The following code allocates space for the
+    data from IFS->execute().
+  */
+  #ifdef IFS_EXECUTE_NEW
+    int dim = (img.width * img.height) / 4;
+    executePixels[0] = new PixelValue[dim];
+    executePixels[1] = new PixelValue[dim];
+    executePixels[2] = new PixelValue[dim];
+    executePixels[3] = new PixelValue[dim];
+
+    averagePixels[0] = new PixelValue[(img.width / 4) * (img.height / 4)];
+    averagePixels[1] = new PixelValue[(img.width / 8) * (img.height / 8)];
+    averagePixels[2] = new PixelValue[(img.width / 16) * (img.height / 16)];
+    averagePixels[3] = new PixelValue[(img.width / 32) * (img.height / 32)];
+  #endif
 
   for (int channel = 1; channel <= img.channels; channel++)
     {
@@ -100,8 +120,22 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
         threshold *= 2;
         }
 
+      /*
+        Build up buffers for IFS->execute()
+        Block-sizes = 2, 4, 8, 16 (max -> BUFFER_SIZE)
+      */
+      #ifdef IFS_EXECUTE_NEW
+        executeIFS(2);
+        executeIFS(4);
+        executeIFS(8);
+        executeIFS(16);
+      #endif
+
       // Go through all the range blocks
-#pragma omp parallel for schedule(dynamic)
+      
+      #ifndef IFS_EXECUTE_NEW
+      #pragma omp parallel for schedule(dynamic)
+      #endif
       for (int y = 0; y < img.height; y += BUFFER_SIZE)
         {
           INC_OP(2);
@@ -132,7 +166,43 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
       printf("\n");
     }
 
+  #ifdef IFS_EXECUTE_NEW
+    delete[] executePixels[0];
+    delete[] executePixels[1];
+    delete[] executePixels[2];
+    delete[] executePixels[3];
+  #endif
+
   return transforms;
+}
+
+void QuadTreeEncoder::executeIFS(int blockSize) {
+  int index = 0;
+  if (blockSize == 4) {
+    index = 1;
+  } else if (blockSize == 8) {
+    index = 2;
+  } else if (blockSize == 16) {
+    index = 3;
+  }
+
+  PixelValue *ptr = executePixels[index];
+  int pixelCount  = blockSize * blockSize;
+
+  PixelValue *avg = averagePixels[index];
+
+  for (int y = 0; y < img.height; y += blockSize * 2) {
+    for (int x = 0; x < img.width; x += blockSize * 2) {
+        /* IFS */
+        IFSTransform::SYM symmetryEnum = (IFSTransform::SYM)symmetry;
+        IFSTransform *ifs = new IFSTransform(x, y, 0, 0, blockSize, symmetryEnum, 1.0, 0);
+        (*avg) = ifs->Execute(img.imagedata2, img.width / 2, ptr, blockSize, true);
+
+        /* Shift pointer */
+        ptr += pixelCount;
+        avg += 1;
+    }
+  }
 }
 
 void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, int blockSize)
@@ -155,7 +225,22 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
   // Get average pixel for the range block
   
   int rangeAvg = GetAveragePixel(img.imagedata, img.width, toX, toY, blockSize);
-    
+  
+  #ifdef IFS_EXECUTE_NEW
+    int index = 3;
+    if (blockSize == 8) {
+      index = 2;
+    } else if (blockSize == 4) {
+      index = 1;
+    } else if (blockSize == 2) {
+      index = 0;
+    }
+
+    PixelValue *buffer = executePixels[index];
+    int pixelCount = blockSize * blockSize;
+
+    PixelValue *avg = averagePixels[index];
+  #endif
   
   // Go through all the downsampled domain blocks
     for (int y = 0; y < img.height; y += blockSize * 2)
@@ -164,19 +249,28 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
       for (int x = 0; x < img.width; x += blockSize * 2)
         {
           INC_OP(3);
-          PixelValue* buffer = buffers[omp_get_thread_num()];
-
+          #ifndef IFS_EXECUTE_NEW
+            PixelValue* buffer = buffers[omp_get_thread_num()];
+          #endif
           for (int symmetry = 0; symmetry < IFSTransform::SYM_MAX; symmetry++)
             {
               INC_OP(2);
               IFSTransform::SYM symmetryEnum = (IFSTransform::SYM)symmetry;
-              IFSTransform* ifs = new IFSTransform(x, y, 0, 0, blockSize, symmetryEnum, 1.0, 0);
 
-              INC_OP(1);
-              ifs->Execute(img.imagedata2, img.width / 2, buffer, blockSize, true);
+              
+              #ifndef IFS_EXECUTE_NEW
+                IFSTransform* ifs = new IFSTransform(x, y, 0, 0, blockSize, symmetryEnum, 1.0, 0);
+                INC_OP(1);
+                ifs->Execute(img.imagedata2, img.width / 2, buffer, blockSize, true);
+              #endif
+
                 
               // Get average pixel for the downsampled domain block
-              int domainAvg = GetAveragePixel(buffer, blockSize, 0, 0, blockSize);
+              #ifndef IFS_EXECUTE_NEW
+                int domainAvg = GetAveragePixel(buffer, blockSize, 0, 0, blockSize);
+              #else
+                int domainAvg = *avg;
+              #endif
                 
               // Get scale and offset
               double scale = GetScaleFactor(img.imagedata, img.width, toX, toY, domainAvg,
@@ -187,7 +281,10 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
               // Get error and compare to best error so far
               double error = GetError(buffer, blockSize, 0, 0, domainAvg,
                                       img.imagedata, img.width, toX, toY, rangeAvg, blockSize, scale);
+              
+              #ifndef IFS_EXECUTE_NEW
               #pragma omp critical
+              #endif
               {
                 INC_OP(1);
               if (error < bestError)
@@ -201,7 +298,14 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
                 }
               }
 
-              delete ifs;
+              #ifdef IFS_EXECUTE_NEW
+                buffer += pixelCount;
+                avg += 1;
+              #endif
+              
+              #ifndef IFS_EXECUTE_NEW
+                delete ifs;
+              #endif
 
               if (!symmetry)
                 break;
@@ -231,11 +335,18 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
                                                      bestScale,
                                                      bestOffset
                                                      );
-      #pragma omp critical
-      {
+      
+      #ifndef IFS_EXECUTE_NEW
+        #pragma omp critical
+        {
+          transforms.push_back(new_transform);
+        }
+      #else
         transforms.push_back(new_transform);
-      }
-      INC_OP(1);
+
+        INC_OP(1);
+      #endif
+
       if (verb >= 1)
         {
           printf("to=(%d, %d)\n", toX, toY);

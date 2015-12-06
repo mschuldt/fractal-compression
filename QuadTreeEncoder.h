@@ -31,11 +31,14 @@ class QuadTreeEncoder : public Encoder
 
  protected:
   void findMatchesFor(Transform& transforms, int toX, int toY, int blockSize);
+  void executeIFS(int blockSize);
 
  protected:
   int threshold;
   bool symmetry;
 
+  PixelValue *executePixels[4];
+  PixelValue *averagePixels[4];
 };
 
 #endif // QTE_H
