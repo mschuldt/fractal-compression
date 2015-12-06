@@ -36,7 +36,7 @@ extern int verb;
 extern bool useYCbCr;
 
 #define BUFFER_SIZE		(16)
-#define IFS_EXECUTE_NEW   true
+#define IFS_EXECUTE_NEW
 
 QuadTreeEncoder::QuadTreeEncoder(int threshold, bool symmetry)
 {
