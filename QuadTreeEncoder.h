@@ -38,6 +38,7 @@ class QuadTreeEncoder : public Encoder
   bool symmetry;
 
   PixelValue *executePixels[4];
+  PixelValue *averagePixels[4];
 };
 
 #endif // QTE_H

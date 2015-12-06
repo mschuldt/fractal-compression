@@ -61,7 +61,7 @@ class IFSTransform
 
   ~IFSTransform();
 
-  void Execute(PixelValue* src, int srcWidth,
+  PixelValue Execute(PixelValue* src, int srcWidth,
                PixelValue* dest, int destWidth, bool downsampled);
 
  private:

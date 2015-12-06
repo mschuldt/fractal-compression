@@ -81,6 +81,11 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
     executePixels[1] = new PixelValue[dim];
     executePixels[2] = new PixelValue[dim];
     executePixels[3] = new PixelValue[dim];
+
+    averagePixels[0] = new PixelValue[(img.width / 4) * (img.height / 4)];
+    averagePixels[1] = new PixelValue[(img.width / 8) * (img.height / 8)];
+    averagePixels[2] = new PixelValue[(img.width / 16) * (img.height / 16)];
+    averagePixels[3] = new PixelValue[(img.width / 32) * (img.height / 32)];
   #endif
 
   for (int channel = 1; channel <= img.channels; channel++)
@@ -173,15 +178,18 @@ void QuadTreeEncoder::executeIFS(int blockSize) {
   PixelValue *ptr = executePixels[index];
   int pixelCount  = blockSize * blockSize;
 
+  PixelValue *avg = averagePixels[index];
+
   for (int y = 0; y < img.height; y += blockSize * 2) {
     for (int x = 0; x < img.width; x += blockSize * 2) {
         /* IFS */
         IFSTransform::SYM symmetryEnum = (IFSTransform::SYM)symmetry;
         IFSTransform *ifs = new IFSTransform(x, y, 0, 0, blockSize, symmetryEnum, 1.0, 0);
-        ifs->Execute(img.imagedata2, img.width / 2, ptr, blockSize, true);
+        (*avg) = ifs->Execute(img.imagedata2, img.width / 2, ptr, blockSize, true);
 
         /* Shift pointer */
         ptr += pixelCount;
+        avg += 1;
     }
   }
 }
@@ -219,6 +227,8 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
 
     PixelValue *buffer = executePixels[index];
     int pixelCount = blockSize * blockSize;
+
+    PixelValue *avg = averagePixels[index];
   #endif
   
   // Go through all the downsampled domain blocks
@@ -240,7 +250,11 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
               #endif
                 
               // Get average pixel for the downsampled domain block
-              int domainAvg = GetAveragePixel(buffer, blockSize, 0, 0, blockSize);
+              #ifndef IFS_EXECUTE_NEW
+                int domainAvg = GetAveragePixel(buffer, blockSize, 0, 0, blockSize);
+              #else
+                int domainAvg = *avg;
+              #endif
                 
               // Get scale and offset
               double scale = GetScaleFactor(img.imagedata, img.width, toX, toY, domainAvg,
@@ -268,6 +282,7 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
 
               #ifdef IFS_EXECUTE_NEW
                 buffer += pixelCount;
+                avg += 1;
               #endif
               
               #ifndef IFS_EXECUTE_NEW

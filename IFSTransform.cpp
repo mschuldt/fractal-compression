@@ -93,7 +93,7 @@ IFSTransform::~IFSTransform()
 {
 }
 
-void IFSTransform::Execute(PixelValue* src, int srcWidth,
+PixelValue IFSTransform::Execute(PixelValue* src, int srcWidth,
                            PixelValue* dest, int destWidth, bool downsampled)
 {
   int fromX = this->fromX / 2;
@@ -125,6 +125,8 @@ void IFSTransform::Execute(PixelValue* src, int srcWidth,
   int startX = fromX;
   int startY = fromY;
 
+  PixelValue accum = 0;
+
   for (int toY = this->toY; toY < (this->toY + size); toY++)
     {
       for (int toX = this->toX; toX < (this->toX + size); toX++)
@@ -149,6 +151,7 @@ void IFSTransform::Execute(PixelValue* src, int srcWidth,
             printf("pixel=%d\n", pixel);
 
           dest[toY * destWidth + toX] = pixel;
+          accum += pixel;
 
           if (inOrder)
             fromX += dX;
@@ -173,6 +176,9 @@ void IFSTransform::Execute(PixelValue* src, int srcWidth,
       delete []src;
       src = NULL;
     }
+
+  /* Return average pixel */
+  return accum / (destWidth * destWidth);
 }
 
 bool IFSTransform::isScanlineOrder()
