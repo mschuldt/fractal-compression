@@ -6,6 +6,8 @@ OBJ = IFSTransform.o\
 	Decoder.o\
 	Encoder.o\
 	QuadTreeEncoder.o\
+        count_ops.o
+
 
 all: fractal
 
@@ -20,6 +22,9 @@ Decoder.o: Decoder.h Decoder.cpp
 
 Encoder.o: Encoder.h Encoder.cpp
 	g++ $(OPT) -c Encoder.cpp
+
+count_ops.o: count_ops.cpp
+	g++ $(OPT) -c count_ops.cpp
 
 QuadTreeEncoder.o: QuadTreeEncoder.h QuadTreeEncoder.cpp
 	g++ $(OPT) -c QuadTreeEncoder.cpp

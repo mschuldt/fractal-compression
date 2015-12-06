@@ -14,6 +14,9 @@
  * limitations under the License.
 */
 
+#define time_gflops 0 //time gflops with hw counters
+
+#include <iostream>
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
@@ -26,17 +29,15 @@ using namespace std;
 #include "Encoder.h"
 #include "QuadTreeEncoder.h"
 #include "Decoder.h"
+#include "counters.h"
+#include "count_ops.h"
 
 #include <time.h>
+#include <cstdio>
+#include <sys/time.h>
+
 #define DWORD unsigned int
-DWORD GetTickCount(){
-  struct timespec ts;
-  if(clock_gettime(CLOCK_MONOTONIC,&ts) != 0) {
-    printf("error: clock_gettime\n");
-    exit(1);
-  }
-  return ts.tv_nsec / 1000000;
-}
+
 
 int verb = 0;
 bool useYCbCr = true;
@@ -54,12 +55,34 @@ void Convert(Encoder* enc, Image* source, int maxphases, int output)
   printf("width = %d, hight = %d, imagesisze = %d", width, height, imagesize);
 
   printf("Encoding...\n");
-  DWORD time = GetTickCount();
+
+#if time_gflops  
+  hwCounter_t cycles;
+  hwCounter_t c;
+  cycles.init = false;
+  c.init = false;  
+  initTicks(cycles);
+  initInsns(c);  
+  uint64_t start_count = getInsns(c);
+  uint64_t start_cycles = getTicks(cycles);
+#endif
+  struct timeval start_time;
+  struct timeval end_time;  
+  gettimeofday(&start_time, 0);
+
+
   Transforms* transforms = enc->Encode(source);
-  time = GetTickCount() - time;
 
-  printf("Encoding time: %d ms\n", time);
+#if time_gflops
+  uint64_t total_cycles = getTicks(cycles) - start_cycles;
+  uint64_t executed = getInsns(c) - start_count;
 
+#endif
+  gettimeofday(&end_time, 0);  
+  double elapsed = (end_time.tv_sec + 1e-6 * end_time.tv_usec)
+    - (start_time.tv_sec + 1e-6 * start_time.tv_usec);
+
+  
   int numTransforms = transforms->ch[0].size() +
     transforms->ch[1].size() + transforms->ch[2].size();
 
@@ -109,6 +132,18 @@ void Convert(Encoder* enc, Image* source, int maxphases, int output)
   delete dec;
   delete transforms;
 
+#if time_gflops  
+  printf("_____ Encoder times _______\n");
+  printf("instructions %f\n", (double)executed/(double)total_cycles);
+  printf("Gflops %f\n", executed/elapsed/1000000000);
+  printf("___________________________\n");
+#endif
+
+  // for lena256.jpg
+  printf("Encoder Gflops: %f\n", 12907292845/elapsed/1000000000);
+#if COUNT_OPS
+  cout<<"op_counter = "<< op_counter<<"\n";
+#endif
   printf("Finished.\n");
 }
 

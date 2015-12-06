@@ -17,6 +17,8 @@
 #define use_fast_GetError 1
 #define use_fast_GetAveragePixel 1
 
+#include "count_ops.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
@@ -46,19 +48,23 @@ double Encoder::GetScaleFactor(
                                int size)
 {
   int top = 0;
-  int bottom = 0;
+  int bottom = 0;  
 
   for (int y = 0; y < size; y++)
     {
+      INC_OP(2);
       for (int x = 0; x < size; x++)
         {
+          INC_OP(12);
           int domain = (domainData[(domainY + y) * domainWidth + (domainX + x)] - domainAvg);
           int range = (rangeData[(rangeY + y) * rangeWidth + (rangeX + x)] - rangeAvg);
 
           // According to the formula we want (R*D) / (D*D)
+          INC_OP(4);
           top += range * domain;
           bottom += domain * domain;
 
+          INC_OP(1);
           if (bottom < 0)
             {
               printf("Error: Overflow occured during scaling %d %d %d %d\n",
@@ -68,6 +74,7 @@ double Encoder::GetScaleFactor(
         }
     }
 
+  INC_OP(1);
   if (bottom == 0)
     {
       top = 0;
@@ -100,7 +107,6 @@ double Encoder::GetError(
   float bottom = (float)(size * size);
   PixelValue * domain_ptr;
   PixelValue * range_ptr;
-
   if (size == 2){
     int top;
     int domain, range, diff;
@@ -192,15 +198,18 @@ double Encoder::GetError(
 
   for (int y = 0; y < size; y++)
     {
+      INC_OP(2);
       for (int x = 0; x < size; x++)
         {
+          INC_OP(14);
           int domain = (domainData[(domainY + y) * domainWidth + (domainX + x)] - domainAvg);
           int range = (rangeData[(rangeY + y) * rangeWidth + (rangeX + x)] - rangeAvg);
           int diff = (int)(scale * (double)domain) - range;
 
           // According to the formula we want (DIFF*DIFF)/(SIZE*SIZE)
+          INC_OP(2);
           top += (diff * diff);
-
+          INC_OP(1);
           if (top < 0)
             {
               printf("Error: Overflow occured during error %lf\n", top);
@@ -208,7 +217,7 @@ double Encoder::GetError(
             }
         }
     }
-
+  INC_OP(1);
   return (top / bottom);
 }
 #endif // use_fast_GetError
@@ -278,15 +287,18 @@ int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
                              int domainX, int domainY, int size)
 {
   int top = 0;
+  INC_OP(1);
   int bottom = (size * size);
-
+  
   // Simple average of all pixels.
   for (int y = domainY; y < domainY + size; y++)
     {
+      INC_OP(3);
       for (int x = domainX; x < domainX + size; x++)
         {
+          INC_OP(6);
           top += domainData[y * domainWidth + x];
-
+          INC_OP(1);
           if (top < 0)
             {
               printf("Error: Accumulator rolled over averaging pixels.\n");
@@ -294,7 +306,7 @@ int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
             }
         }
     }
-
+  INC_OP(1);
   return (top / bottom);
 }
 

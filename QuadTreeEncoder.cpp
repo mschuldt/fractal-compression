@@ -15,6 +15,8 @@
  */
 
 
+#include "count_ops.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
@@ -61,7 +63,6 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
   img.height = source->GetHeight();
   img.channels = source->GetChannels();
   transforms->channels = img.channels;
-  //#pragma omp parallel for
 
   omp_set_num_threads(N_THREADS);
   buffers = new PixelValue*[N_THREADS];
@@ -71,12 +72,14 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
 
   for (int channel = 1; channel <= img.channels; channel++)
     {
-        
+      INC_OP(2);
 
       // Load image into a local copy
+      INC_OP(4);
       img.imagedata = new PixelValue[img.width * img.height];
       source->GetChannelData(channel, img.imagedata, img.width * img.height);
 
+      INC_OP(4);
       if (img.width % 32 != 0 || img.height %32 != 0)
         {
           printf("Error: Image must have dimensions that are multiples of 32.\n");
@@ -86,21 +89,25 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
 
       // Make second channel the downsampled version of the image.
       //Get time before
-        uint64_t current_time = getTicks(cl);
+        INC_OP(1);
         img.imagedata2 = IFSTransform::DownSample(img.imagedata, img.width, 0, 0, img.width / 2);
-        uint64_t elapsed = getTicks(cl) - current_time;
-        printf("Number of Cycles required to take downsample: %lu\n", elapsed);
+
       // When using YCbCr we can reduce the quality of colour, because the eye
       // is more sensitive to intensity which is channel 1.
-      if (channel >= 2 && useYCbCr)
+        INC_OP(2);
+       if (channel >= 2 && useYCbCr){
+         INC_OP(1);
         threshold *= 2;
+        }
 
       // Go through all the range blocks
 #pragma omp parallel for schedule(dynamic)
       for (int y = 0; y < img.height; y += BUFFER_SIZE)
         {
+          INC_OP(2);
           for (int x = 0; x < img.width; x += BUFFER_SIZE)
             {
+              INC_OP(3);
               //printf("****Buffer Size: %d\n", BUFFER_SIZE);
               findMatchesFor(transforms->ch[channel-1], x, y, BUFFER_SIZE);
               printf(".");
@@ -112,8 +119,11 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
        //printf("Number of Cycles required to take findBestMatch: %lu\n", elapsed);
         
       // Bring the threshold back to original.
-      if (channel >= 2 && useYCbCr)
+      INC_OP(2);
+      if (channel >= 2 && useYCbCr){
+        INC_OP(1);
         threshold /= 2;
+      }
 
       delete []img.imagedata2;
       img.imagedata2 = NULL;
@@ -150,15 +160,19 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
   // Go through all the downsampled domain blocks
     for (int y = 0; y < img.height; y += blockSize * 2)
     {
+      INC_OP(3);
       for (int x = 0; x < img.width; x += blockSize * 2)
         {
+          INC_OP(3);
           PixelValue* buffer = buffers[omp_get_thread_num()];
 
           for (int symmetry = 0; symmetry < IFSTransform::SYM_MAX; symmetry++)
             {
+              INC_OP(2);
               IFSTransform::SYM symmetryEnum = (IFSTransform::SYM)symmetry;
               IFSTransform* ifs = new IFSTransform(x, y, 0, 0, blockSize, symmetryEnum, 1.0, 0);
 
+              INC_OP(1);
               ifs->Execute(img.imagedata2, img.width / 2, buffer, blockSize, true);
                 
               // Get average pixel for the downsampled domain block
@@ -167,6 +181,7 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
               // Get scale and offset
               double scale = GetScaleFactor(img.imagedata, img.width, toX, toY, domainAvg,
                                             buffer, blockSize, 0, 0, rangeAvg, blockSize);
+              INC_OP(2);
               int offset = (int)(rangeAvg - scale * (double)domainAvg);
 
               // Get error and compare to best error so far
@@ -174,6 +189,7 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
                                       img.imagedata, img.width, toX, toY, rangeAvg, blockSize, scale);
               #pragma omp critical
               {
+                INC_OP(1);
               if (error < bestError)
                 {
                   bestError = error;
@@ -193,10 +209,11 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
         }
     }
 
-
+    INC_OP(3);
   if (blockSize > 2 && bestError >= threshold)
     {
       // Recurse into the four corners of the current block.
+      INC_OP(5);
       blockSize /= 2;
       findMatchesFor(transforms, toX, toY, blockSize);
       findMatchesFor(transforms, toX + blockSize, toY, blockSize);
@@ -218,7 +235,7 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
       {
         transforms.push_back(new_transform);
       }
-
+      INC_OP(1);
       if (verb >= 1)
         {
           printf("to=(%d, %d)\n", toX, toY);
