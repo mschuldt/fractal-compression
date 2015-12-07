@@ -36,8 +36,6 @@ using namespace std;
 #include "IFSTransform.h"
 #include "Encoder.h"
 
-# define SIMDIZE true
-
 
 Encoder::Encoder(){
   temp_ints = new unsigned int* [N_THREADS];
@@ -55,7 +53,6 @@ double Encoder::GetScaleFactor(
 {
   int top = 0;
   int bottom = 0;
-  // bool simdize = false;
 
   if (size == 2){
     // printf("SIZE IS 2\n");
@@ -71,7 +68,7 @@ double Encoder::GetScaleFactor(
 
     top = range1 * domain1 + range2 * domain2 + range3 * domain3 + range4 * domain4;
     bottom = domain1 * domain1 + domain2 * domain2 + domain3 * domain3 + domain4 * domain4;
-  } else if(SIMDIZE) {
+  }else{
     int top_vals[4], bottom_vals[4];
     __m128i dv1 = _mm_setzero_si128();
     // __m128i dv2 = _mm_setzero_si128();
@@ -107,32 +104,12 @@ double Encoder::GetScaleFactor(
     _mm_store_si128((__m128i*)bottom_vals, vbottom);
     top = top_vals[0] + top_vals[1] + top_vals[2] + top_vals[3];
     bottom = bottom_vals[0] + bottom_vals[1] + bottom_vals[2] + bottom_vals[3];
-
-
-  } else {
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        int domain = (domainData[(domainY + y) * domainWidth + (domainX + x)] - domainAvg);
-        int range = (rangeData[(rangeY + y) * rangeWidth + (rangeX + x)] - rangeAvg);
-
-        // According to the formula we want (R*D) / (D*D)
-        top += range * domain;
-        bottom += domain * domain;
-
-        if (bottom < 0) {
-          printf("Error: Overflow occured during scaling %d %d %d %d\n",
-                 y, domainWidth, bottom, top);
-          exit(-1);
-        }
-      }
-    }
   }
 
-  if (bottom == 0)
-    {
-      top = 0;
-      bottom = 1;
-    }
+  if (bottom == 0){
+    top = 0;
+    bottom = 1;
+  }
 
   return ((double)top) / ((double)bottom);
 }
