@@ -130,6 +130,8 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
       #ifndef IFS_EXECUTE_NEW
       #pragma omp parallel for schedule(dynamic)
       #endif
+
+      #pragma omp parallel for schedule(dynamic)
       for (int y = 0; y < img.height; y += BUFFER_SIZE)
         {
           for (int x = 0; x < img.width; x += BUFFER_SIZE)
@@ -258,11 +260,11 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
                 
               // Get scale and offset
               double scale = GetScaleFactor(img.imagedata, img.width, toX, toY, domainAvg,
-                                            buffer, blockSize, 0, 0, rangeAvg, blockSize);
+                                            buffer, blockSize, rangeAvg, blockSize);
               int offset = (int)(rangeAvg - scale * (double)domainAvg);
 
               // Get error and compare to best error so far
-              double error = GetError(buffer, blockSize, 0, 0, domainAvg,
+              double error = GetError(buffer, blockSize, domainAvg,
                                       img.imagedata, img.width, toX, toY, rangeAvg, blockSize, scale);
               
               #ifndef IFS_EXECUTE_NEW
@@ -323,7 +325,10 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
           transforms.push_back(new_transform);
         }
       #else
-        transforms.push_back(new_transform);
+        #pragma omp critical
+        {
+          transforms.push_back(new_transform);
+        }
       #endif
 
       if (verb >= 1)
