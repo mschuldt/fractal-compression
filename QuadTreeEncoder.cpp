@@ -260,11 +260,11 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
                 
               // Get scale and offset
               double scale = GetScaleFactor(img.imagedata, img.width, toX, toY, domainAvg,
-                                            buffer, blockSize, rangeAvg, blockSize);
+                                            buffer, blockSize, 0, 0, rangeAvg, blockSize);
               int offset = (int)(rangeAvg - scale * (double)domainAvg);
 
               // Get error and compare to best error so far
-              double error = GetError(buffer, blockSize, domainAvg,
+              double error = GetError(buffer, blockSize, 0, 0, domainAvg,
                                       img.imagedata, img.width, toX, toY, rangeAvg, blockSize, scale);
               
               #ifndef IFS_EXECUTE_NEW
