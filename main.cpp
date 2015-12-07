@@ -141,8 +141,14 @@ void Convert(Encoder* enc, Image* source, int maxphases, int output)
 
   // for lena256.jpg
   printf("Encoder Gflops: %f\n", 12907292845/elapsed/1000000000);
+  // base: 1.852020 Gflops
 #if COUNT_OPS
-  cout<<"op_counter = "<< op_counter<<"\n";
+  cout<<"total ops = "<< total_ops()<<"\n";
+  cout<<"downsample: "<< op_counter[downsample_i] <<'\n';
+  cout<<"execute: "<< op_counter[execute_i] <<'\n';
+  cout<<"getScaleFactor: "<< op_counter[getscalefactore_i] <<'\n';
+  cout<<"getError: "<< op_counter[geterror_i] <<'\n';
+  cout<<"getAveragePixel: "<< op_counter[getaveragepixel_i] <<'\n';
 #endif
   printf("Finished.\n");
 }

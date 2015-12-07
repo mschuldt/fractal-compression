@@ -51,31 +51,31 @@ Transforms::~Transforms()
 PixelValue* IFSTransform::DownSample(PixelValue* src, int srcWidth,
                                      int startX, int startY, int targetSize)
 {
-  INC_OP(1);
+  INC_OP2(1, downsample_i);
   PixelValue* dest = new PixelValue[targetSize * targetSize];
   int destX = 0;
   int destY = 0;
 
   for (int y = startY; y < startY + targetSize * 2; y += 2)
     {
-     INC_OP(4);
+     INC_OP2(4, downsample_i);
       for (int x = startX; x < startX + targetSize * 2; x += 2)
         {
-         INC_OP(4);
+         INC_OP2(4, downsample_i);
           // Perform simple 2x2 average
           int pixel = 0;
-          INC_OP(17);
+          INC_OP2(17, downsample_i);
           pixel += src[y * srcWidth + x];
           pixel += src[y * srcWidth + (x + 1)];
           pixel += src[(y + 1) * srcWidth + x];
           pixel += src[(y + 1) * srcWidth + (x + 1)];
           pixel /= 4;
 
-          INC_OP(3);
+          INC_OP2(3, downsample_i);
           dest[destY * targetSize + destX] = pixel;
           destX++;
         }
-      INC_OP(1);
+      INC_OP2(1, downsample_i);
       destY++;
       destX = 0;
     }
@@ -103,14 +103,14 @@ IFSTransform::~IFSTransform()
 PixelValue IFSTransform::Execute(PixelValue* src, int srcWidth,
                            PixelValue* dest, int destWidth, bool downsampled)
 {
-  INC_OP(2);
+  INC_OP2(2, execute_i);
   int fromX = this->fromX / 2;
   int fromY = this->fromY / 2;
   int dX = 1;
   int dY = 1;
   bool inOrder = isScanlineOrder();
 
-  INC_OP(1);
+  INC_OP2(1, execute_i);
   if (!downsampled)
     {
       PixelValue* newSrc = DownSample(src, srcWidth, this->fromX, this->fromY, size);
@@ -119,18 +119,18 @@ PixelValue IFSTransform::Execute(PixelValue* src, int srcWidth,
       fromX = fromY = 0;
     }
 
-  INC_OP(1);
+  INC_OP2(1, execute_i);
   if (!isPositiveX())
     {
-      INC_OP(3); 
+      INC_OP2(3, execute_i);
       fromX += size - 1;
       dX = -1;
     }
 
-  INC_OP(1);
+  INC_OP2(1, execute_i);
   if (!isPositiveY())
     {
-      INC_OP(3);
+      INC_OP2(3, execute_i);
       fromY += size - 1;
       dY = -1;
     }
@@ -142,10 +142,10 @@ PixelValue IFSTransform::Execute(PixelValue* src, int srcWidth,
 
   for (int toY = this->toY; toY < (this->toY + size); toY++)
     {
-     INC_OP(3);
+     INC_OP2(3, execute_i);
       for (int toX = this->toX; toX < (this->toX + size); toX++)
         {
-          INC_OP(4);
+          INC_OP2(4, execute_i);
           if (verb >= 4)
             {
               printf("toX=%d\n", toX);
@@ -153,48 +153,48 @@ PixelValue IFSTransform::Execute(PixelValue* src, int srcWidth,
               printf("fromX=%d\n", fromX);
               printf("fromY=%d\n", fromY);
             }
-          INC_OP(4);  
+          INC_OP2(4, execute_i);
           int pixel = src[fromY * srcWidth + fromX];
           pixel = (int)(scale * pixel) + offset;
 
-          INC_OP(2);
+          INC_OP2(2, execute_i);
           if (pixel < 0)
             pixel = 0;
           if (pixel > 255)
             pixel = 255;
 
-          INC_OP(1);
+          INC_OP2(1, execute_i);
           if (verb >= 4)
             printf("pixel=%d\n", pixel);
 
-          INC_OP(2);
+          INC_OP2(2, execute_i);
           dest[toY * destWidth + toX] = pixel;
           accum += pixel;
 
          if (inOrder){
-            INC_OP(1);
+            INC_OP2(1, execute_i);
             fromX += dX;
          }else{
-            INC_OP(1);
+            INC_OP2(1, execute_i);
             fromY += dY;
          }
         }
 
       if (inOrder)
         {
-          INC_OP(1);
+          INC_OP2(1, execute_i);
           fromX = startX;
           fromY += dY;
         }
       else
         {
-          INC_OP(1);
+          INC_OP2(1, execute_i);
           fromY = startY;
           fromX += dX;
         }
     }
 
-  INC_OP(1);
+  INC_OP2(1, execute_i);
   if (!downsampled)
     {
       delete []src;
@@ -207,7 +207,7 @@ PixelValue IFSTransform::Execute(PixelValue* src, int srcWidth,
 
 bool IFSTransform::isScanlineOrder()
 {
-  INC_OP(4);
+  INC_OP2(4, execute_i);
   return (
           symmetry == SYM_NONE ||
           symmetry == SYM_R180 ||
@@ -218,7 +218,7 @@ bool IFSTransform::isScanlineOrder()
 
 bool IFSTransform::isPositiveX()
 {
-  INC_OP(4);
+  INC_OP2(4, execute_i);
   return (
           symmetry == SYM_NONE ||
           symmetry == SYM_R90 ||
@@ -229,7 +229,7 @@ bool IFSTransform::isPositiveX()
 
 bool IFSTransform::isPositiveY()
 {
-  INC_OP(4);
+  INC_OP2(4, execute_i);
   return (
           symmetry == SYM_NONE ||
           symmetry == SYM_R270 ||
@@ -237,4 +237,3 @@ bool IFSTransform::isPositiveY()
           symmetry == SYM_RDFLIP
           );
 }
-
