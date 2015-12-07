@@ -86,19 +86,58 @@ double Encoder::GetScaleFactor(
     int range_avgs[] = {rangeAvg, rangeAvg, rangeAvg, rangeAvg};
     davg = _mm_load_si128 ((__m128i const *) domain_avgs);
     ravg = _mm_load_si128 ((__m128i const *) range_avgs);
+    /*
+#define body(x) do{
+    
+  }
+    switch (size){
+    case 16:
+      break;
+    case 8:
+      break;
+    case 4:
+      break;
+    }
+    */
+    PixelValue * domain_ptr;
+    PixelValue * range_ptr;
 
-    for (int i = 0; i < size; i++) {
-      for (int j = 0; j < size; j += 4){
+#define body2(x) do{ \
+      dv1 = _mm_load_si128 ((__m128i const *)(domain_ptr + x));   \
+      rv1 = _mm_load_si128 ((__m128i const *)(range_ptr + x));    \
+        dv1 = _mm_sub_epi32(dv1, davg); \
+        rv1 = _mm_sub_epi32(rv1, ravg); \
+        vtop = _mm_add_epi32(vtop, _mm_mul_epi32(dv1, rv1)); \
+        vbottom = _mm_add_epi32(vbottom, _mm_mul_epi32(dv1, dv1)); \
+    }while (0); 
 
-        dv1 = _mm_load_si128 ((__m128i const *) &domainData[(domainY + i) * domainWidth + domainX + j]);
-        rv1 = _mm_load_si128 ((__m128i const *) &rangeData[(rangeY + i) * rangeWidth + rangeX + j]);
-        dv1 = _mm_sub_epi32(dv1, davg);
-        rv1 = _mm_sub_epi32(rv1, ravg);
-
-        vtop = _mm_add_epi32(vtop, _mm_mul_epi32(dv1, rv1));
-        vbottom = _mm_add_epi32(vbottom, _mm_mul_epi32(dv1, dv1));
-
+    switch(size){
+    case 4:
+      for (int i = 0; i < size; i++) {
+        domain_ptr = domainData + (domainY + i) * domainWidth + domainX;
+        range_ptr = rangeData + (rangeY + i) * rangeWidth + rangeX;
+        body2(0);
       }
+      break;
+
+    case 8:
+      for (int i = 0; i < size; i++) {
+        domain_ptr = domainData + (domainY + i) * domainWidth + domainX;
+        range_ptr = rangeData + (rangeY + i) * rangeWidth + rangeX;
+        body2(0);
+        body2(4);
+      }
+      break;
+    case 16:
+      for (int i = 0; i < size; i++) {
+        domain_ptr = domainData + (domainY + i) * domainWidth + domainX;
+        range_ptr = rangeData + (rangeY + i) * rangeWidth + rangeX;
+        body2(0);
+        body2(4);
+        body2(8);
+        body2(12);
+      }
+      break;
     }
     _mm_store_si128((__m128i*)top_vals, vtop);
     _mm_store_si128((__m128i*)bottom_vals, vbottom);
