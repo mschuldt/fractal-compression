@@ -32,6 +32,8 @@ class QuadTreeEncoder : public Encoder
  protected:
   void findMatchesFor(Transform& transforms, int toX, int toY, int blockSize);
   void executeIFS(int blockSize);
+  void calculateSummedAreaTable();
+  int domainGetAveragePixel(int x, int y, int blockSize);
 
  protected:
   int threshold;
@@ -39,6 +41,7 @@ class QuadTreeEncoder : public Encoder
 
   PixelValue *executePixels[4];
   PixelValue *averagePixels[4];
+  PixelValue *table;
 };
 
 #endif // QTE_H

@@ -1,7 +1,7 @@
 #ifndef COUNT_OPS_H
 #define COUNT_OPS_H
 
-#define COUNT_OPS true
+#define COUNT_OPS false
 
 #include <cstdio>
 #include <cstdlib>

@@ -15,8 +15,6 @@
  */
 
 
-#include "count_ops.h"
-
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
@@ -37,7 +35,7 @@ using namespace std;
 extern int verb;
 extern bool useYCbCr;
 
-#define BUFFER_SIZE		(16)
+#define BUFFER_SIZE   (16)
 #define IFS_EXECUTE_NEW
 
 QuadTreeEncoder::QuadTreeEncoder(int threshold, bool symmetry)
@@ -92,14 +90,12 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
 
   for (int channel = 1; channel <= img.channels; channel++)
     {
-      INC_OP(2);
+        
 
       // Load image into a local copy
-      INC_OP(4);
       img.imagedata = new PixelValue[img.width * img.height];
       source->GetChannelData(channel, img.imagedata, img.width * img.height);
 
-      INC_OP(4);
       if (img.width % 32 != 0 || img.height %32 != 0)
         {
           printf("Error: Image must have dimensions that are multiples of 32.\n");
@@ -109,16 +105,11 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
 
       // Make second channel the downsampled version of the image.
       //Get time before
-        INC_OP(1);
         img.imagedata2 = IFSTransform::DownSample(img.imagedata, img.width, 0, 0, img.width / 2);
-
       // When using YCbCr we can reduce the quality of colour, because the eye
       // is more sensitive to intensity which is channel 1.
-        INC_OP(2);
-       if (channel >= 2 && useYCbCr){
-         INC_OP(1);
+      if (channel >= 2 && useYCbCr)
         threshold *= 2;
-        }
 
       /*
         Build up buffers for IFS->execute()
@@ -133,15 +124,11 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
 
       // Go through all the range blocks
 
-      #ifndef IFS_EXECUTE_NEW
-#pragma omp parallel for schedule(dynamic)
-      #endif
+      #pragma omp parallel for schedule(dynamic)
       for (int y = 0; y < img.height; y += BUFFER_SIZE)
         {
-          INC_OP(2);
           for (int x = 0; x < img.width; x += BUFFER_SIZE)
             {
-              INC_OP(3);
               //printf("****Buffer Size: %d\n", BUFFER_SIZE);
               findMatchesFor(transforms->ch[channel-1], x, y, BUFFER_SIZE);
               printf(".");
@@ -153,11 +140,8 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
        //printf("Number of Cycles required to take findBestMatch: %lu\n", elapsed);
 
       // Bring the threshold back to original.
-      INC_OP(2);
-      if (channel >= 2 && useYCbCr){
-        INC_OP(1);
+      if (channel >= 2 && useYCbCr)
         threshold /= 2;
-      }
 
       delete []img.imagedata2;
       img.imagedata2 = NULL;
@@ -288,25 +272,16 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
   else
     {
       // Use this transformation
-      IFSTransform* new_transform = new IFSTransform(
-                                                     bestX, bestY,
+      IFSTransform* new_transform = new IFSTransform(bestX, bestY,
                                                      toX, toY,
                                                      blockSize,
                                                      bestSymmetry,
                                                      bestScale,
-                                                     bestOffset
-                                                     );
-
+                                                     bestOffset);
+#pragma omp critical
+{
       transforms.push_back(new_transform);
-      if (verb >= 1)
-        {
-          printf("to=(%d, %d)\n", toX, toY);
-          printf("from=(%d, %d)\n", bestX, bestY);
-          printf("best error=%lf\n", bestError);
-          printf("best symmetry=%d\n", (int)bestSymmetry);
-          printf("best offset=%d\n", bestOffset);
-          printf("best scale=%lf\n", bestScale);
-        }
+}
     }
 }
 
@@ -333,14 +308,13 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
   // Go through all the downsampled domain blocks
     for (int y = 0; y < img.height; y += blockSize * 2)
     {
-      INC_OP(3);
       for (int x = 0; x < img.width; x += blockSize * 2)
         {
           INC_OP(3);
           PixelValue* buffer = buffers[omp_get_thread_num()];
+
           for (int symmetry = 0; symmetry < IFSTransform::SYM_MAX; symmetry++)
             {
-              INC_OP(2);
               IFSTransform::SYM symmetryEnum = (IFSTransform::SYM)symmetry;
 
               IFSTransform* ifs = new IFSTransform(x, y, 0, 0, blockSize, symmetryEnum, 1.0, 0);
@@ -348,16 +322,15 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
               ifs->Execute(img.imagedata2, img.width / 2, buffer, blockSize, true);
               int domainAvg = GetAveragePixel(buffer, blockSize, 0, 0, blockSize);
 
+
               // Get scale and offset
               double scale = GetScaleFactor(img.imagedata, img.width, toX, toY, domainAvg,
                                             buffer, blockSize, 0, 0, rangeAvg, blockSize);
-              INC_OP(2);
               int offset = (int)(rangeAvg - scale * (double)domainAvg);
 
               // Get error and compare to best error so far
               double error = GetError(buffer, blockSize, 0, 0, domainAvg,
                                       img.imagedata, img.width, toX, toY, rangeAvg, blockSize, scale);
-
 
               INC_OP(1);
 
@@ -378,11 +351,10 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
         }
     }
 
-    INC_OP(3);
+
   if (blockSize > 2 && bestError >= threshold)
     {
       // Recurse into the four corners of the current block.
-      INC_OP(5);
       blockSize /= 2;
       findMatchesFor(transforms, toX, toY, blockSize);
       findMatchesFor(transforms, toX + blockSize, toY, blockSize);
@@ -400,7 +372,6 @@ void QuadTreeEncoder::findMatchesFor(Transform& transforms, int toX, int toY, in
                                                      bestScale,
                                                      bestOffset
                                                      );
-
 #pragma omp critical
       {
               transforms.push_back(new_transform);
