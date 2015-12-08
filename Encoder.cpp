@@ -126,10 +126,8 @@ double Encoder::GetScaleFactor(
 
   for (int y = 0; y < size; y++)
     {
-      INC_OP2(2, getscalefactore_i);
       for (int x = 0; x < size; x++)
         {
-          INC_OP2(12, getscalefactore_i);
           int domain = (domainData[(domainY + y) * domainWidth + (domainX + x)] - domainAvg);
           int range = (rangeData[(rangeY + y) * rangeWidth + (rangeX + x)] - rangeAvg);
 
@@ -138,7 +136,6 @@ double Encoder::GetScaleFactor(
           top += range * domain;
           bottom += domain * domain;
 
-          INC_OP2(1, getscalefactore_i);
           if (bottom < 0)
             {
               printf("Error: Overflow occured during scaling %d %d %d %d\n",
@@ -147,8 +144,6 @@ double Encoder::GetScaleFactor(
             }
         }
     }
-
-  INC_OP2(1, getscalefactore_i);
 
   if (bottom == 0)
     {
@@ -277,26 +272,22 @@ double Encoder::GetError(
 
   for (int y = 0; y < size; y++)
     {
-      INC_OP2(2, geterror_i);
-      for (int x = 0; x < size; x++)
+       for (int x = 0; x < size; x++)
         {
-          INC_OP2(14, geterror_i);
-          int domain = (domainData[(domainY + y) * domainWidth + (domainX + x)] - domainAvg);
+           int domain = (domainData[(domainY + y) * domainWidth + (domainX + x)] - domainAvg);
           int range = (rangeData[(rangeY + y) * rangeWidth + (rangeX + x)] - rangeAvg);
           int diff = (int)(scale * (double)domain) - range;
 
           // According to the formula we want (DIFF*DIFF)/(SIZE*SIZE)
           INC_OP2(2, geterror_i);
           top += (diff * diff);
-          INC_OP2(1, geterror_i);
-          if (top < 0)
+           if (top < 0)
             {
               printf("Error: Overflow occured during error %lf\n", top);
               exit(-1);
             }
         }
     }
-  INC_OP2(1, geterror_i);
   return (top / bottom);
 }
 
@@ -367,18 +358,15 @@ int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
                              int domainX, int domainY, int size)
 {
   int top = 0;
-  INC_OP2(1, getaveragepixel_i);
   int bottom = (size * size);
 
   // Simple average of all pixels.
   for (int y = domainY; y < domainY + size; y++)
     {
-      INC_OP2(3, getaveragepixel_i);
       for (int x = domainX; x < domainX + size; x++)
         {
-          INC_OP2(6, getaveragepixel_i);
-          top += domainData[y * domainWidth + x];
           INC_OP2(1, getaveragepixel_i);
+          top += domainData[y * domainWidth + x];
           if (top < 0)
             {
               printf("Error: Accumulator rolled over averaging pixels.\n");
@@ -386,7 +374,6 @@ int Encoder::GetAveragePixel(PixelValue* domainData, int domainWidth,
             }
         }
     }
-  INC_OP2(1, getaveragepixel_i);
   return (top / bottom);
 }
 #endif //use_simd_GetAveragePixel

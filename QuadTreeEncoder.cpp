@@ -31,13 +31,20 @@ using namespace std;
 #include "IFSTransform.h"
 #include "Encoder.h"
 #include "QuadTreeEncoder.h"
+#include "count_ops.h"
+
+#define use_openmp true
+#define memoize true
+
 
 extern int verb;
 extern bool useYCbCr;
 
 #define BUFFER_SIZE   (16)
-#define IFS_EXECUTE_NEW
 
+#if memoize
+#define IFS_EXECUTE_NEW
+#endif
 QuadTreeEncoder::QuadTreeEncoder(int threshold, bool symmetry)
 {
   this->threshold = threshold;
@@ -123,8 +130,9 @@ Transforms* QuadTreeEncoder::Encode(Image* source)
       #endif
 
       // Go through all the range blocks
-
-      #pragma omp parallel for schedule(dynamic)
+#if use_openmp
+#pragma omp parallel for schedule(dynamic)
+#endif
       for (int y = 0; y < img.height; y += BUFFER_SIZE)
         {
           for (int x = 0; x < img.width; x += BUFFER_SIZE)
